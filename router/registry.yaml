@@ -1,0 +1,41 @@
+# Engine catalog for the routing gateway. Edit model paths to your machine.
+# The arbiter treats the iGPU as a single-owner device: only one 'igpu' engine
+# runs at a time (LRU-evicted). 'cpu' engines (colibrì) coexist with it.
+
+gpu_vram_gb: 96          # GTT carveout the iGPU may use (set BIOS variable graphics mem >= this)
+idle_timeout_s: 300      # reap a backend after this many idle seconds
+default: qwen3-30b       # where 'model: auto' small/mid requests land
+
+engines:
+  - name: qwen3-8b
+    engine: llamacpp
+    class: small
+    model: C:\models\qwen3-8b-q4.gguf
+    device: igpu
+    vram_est_gb: 8
+    port: 8101
+
+  - name: qwen3-30b
+    engine: llamacpp
+    class: mid
+    model: C:\models\qwen3-30b-a3b-q4.gguf
+    device: igpu
+    vram_est_gb: 20
+    port: 8102
+
+  - name: gptoss-120b
+    engine: llamacpp
+    class: large
+    model: C:\models\gpt-oss-120b-q4.gguf
+    device: igpu
+    vram_est_gb: 66
+    port: 8103
+
+  - name: glm-5.2
+    engine: colibri
+    class: xlarge
+    model: C:\models\glm52_i4
+    device: cpu
+    vram_est_gb: 0
+    port: 8104
+    env: { RAM_GB: "90", TOPP: "0.7", MTP: "1" }

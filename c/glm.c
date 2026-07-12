@@ -32,6 +32,7 @@
 #include "st.h"
 #include "tok.h"
 #include "tier.h"
+#include "model.h"                                /* R0: ModelProvider (naming + metadata) */
 #include "grammar.h"                              /* metodo F: draft grammaticali (#48) */
 #ifdef COLI_CUDA
 #include <omp.h>
@@ -110,6 +111,7 @@ typedef struct {
 
 typedef struct {
     Cfg c; shards S;
+    ModelProvider mp;                            /* R0: model-family naming + shape */
     int ebits, dbits;                            /* bit expert / bit densa */
     QT embed, lm_head; float *final_norm;
     Layer *L;
@@ -736,6 +738,9 @@ static float *ld(Model *m, const char *name){   /* tensore 1D f32 residente (nor
 static void model_init(Model *m, const char *snap, int cap, int ebits, int dbits){
     memset(m,0,sizeof(*m)); m->ebits=ebits; m->dbits=dbits;
     load_cfg(&m->c,snap); st_init(&m->S,snap);
+    m->mp=mp_glm();                              /* R0: GLM adapter; metadata mirrors Cfg */
+    m->mp.n_layers=m->c.n_layers; m->mp.experts_per_layer=m->c.n_experts; m->mp.top_k=m->c.topk;
+    m->mp.first_dense=m->c.first_dense; m->mp.moe_inter=m->c.moe_inter; m->mp.hidden=m->c.hidden;
     Cfg *c=&m->c; char nm[256]; int H=c->n_heads, D=c->hidden;
     /* embed e lm_head sono il confine I/O: tenerli ad alta precisione (come i quant dynamic
      * reali). A bf16 ~1.9GB su GLM reale: trascurabile. dbits>=8 -> qui f32; piu' basso -> dbits. */
@@ -899,9 +904,8 @@ static void expert_load(Model *m, int layer, int eid, ESlot *s){
     if(s->eid!=eid){ qt_cuda_reset(&s->g); qt_cuda_reset(&s->u); qt_cuda_reset(&s->d); }
 #endif
     Cfg *c=&m->c; int I=c->moe_inter, D=c->hidden, b=m->ebits;
-    char nm[3][288]; const char *suf[3]={"gate_proj","up_proj","down_proj"};
-    for(int k=0;k<3;k++) snprintf(nm[k],sizeof(nm[k]),"model.layers.%d.mlp.experts.%d.%s.weight",layer,eid,suf[k]);
-    char qn[300]; snprintf(qn,sizeof(qn),"%s.qs",nm[0]);
+    char nm[MP_NPROJ][MP_NAME_MAX]; mp_expert_names(&m->mp,layer,eid,nm);   /* R0: via provider */
+    char qn[MP_QSNAME_MAX]; mp_qs_name(&m->mp,nm[0],qn,sizeof(qn));
     if(!st_has(&m->S,qn)){                       /* fallback: tensori pieni, quantizza a runtime */
         qt_from_disk(m,nm[0],I,D,b,g_drop,&s->g);
         qt_from_disk(m,nm[1],I,D,b,g_drop,&s->u);
@@ -911,7 +915,7 @@ static void expert_load(Model *m, int layer, int eid, ESlot *s){
     st_tensor *tw[3], *tq[3];
     for(int k=0;k<3;k++){
         tw[k]=st_find(&m->S,nm[k]);
-        snprintf(qn,sizeof(qn),"%s.qs",nm[k]); tq[k]=st_find(&m->S,qn);
+        mp_qs_name(&m->mp,nm[k],qn,sizeof(qn)); tq[k]=st_find(&m->S,qn);
         if(!tw[k]||!tq[k]){ fprintf(stderr,"manca %s\n",nm[k]); exit(1); }
     }
     int64_t wtot=tw[0]->nbytes+tw[1]->nbytes+tw[2]->nbytes;
@@ -975,11 +979,10 @@ static void expert_load(Model *m, int layer, int eid, ESlot *s){
 /* prefetch asincrono dei pesi di un expert (e delle sue scale .qs): avvia il readahead
  * cosi' le letture sincrone successive trovano la page-cache calda. */
 static void expert_prefetch(Model *m, int layer, int eid){
-    char nm[300];
-    const char *suf[3]={"gate_proj.weight","up_proj.weight","down_proj.weight"};
-    for(int k=0;k<3;k++){
-        snprintf(nm,sizeof(nm),"model.layers.%d.mlp.experts.%d.%s",layer,eid,suf[k]); st_prefetch(&m->S,nm);
-        char qs[320]; snprintf(qs,sizeof(qs),"%s.qs",nm); st_prefetch(&m->S,qs);
+    char nm[MP_NAME_MAX], qs[MP_QSNAME_MAX];               /* R0: via provider */
+    for(int k=0;k<MP_NPROJ;k++){
+        mp_expert_name(&m->mp,layer,eid,k,nm,sizeof(nm)); st_prefetch(&m->S,nm);
+        mp_qs_name(&m->mp,nm,qs,sizeof(qs)); st_prefetch(&m->S,qs);
     }
 }
 
@@ -2207,15 +2210,14 @@ static int64_t tbytes(int O,int I,int bits){
 }
 /* byte VERI di un expert: dal container se pre-quantizzato, altrimenti stima da ebits */
 static int64_t expert_bytes_probe(Model *m, int ebits){
-    Cfg *c=&m->c; int64_t eb=0; char nm[256];
-    snprintf(nm,sizeof(nm),"model.layers.%d.mlp.experts.0.gate_proj.weight",c->first_dense);
+    Cfg *c=&m->c; int64_t eb=0; char nm[MP_NAME_MAX], qs[MP_QSNAME_MAX];
+    mp_expert_name(&m->mp,c->first_dense,0,0,nm,sizeof(nm));               /* R0: via provider */
     if(st_nbytes(&m->S,nm)>0){
-        const char *suf[3]={"gate_proj","up_proj","down_proj"};
-        for(int k=0;k<3;k++){
-            snprintf(nm,sizeof(nm),"model.layers.%d.mlp.experts.0.%s.weight",c->first_dense,suf[k]);
+        for(int k=0;k<MP_NPROJ;k++){
+            mp_expert_name(&m->mp,c->first_dense,0,k,nm,sizeof(nm));
             eb+=st_nbytes(&m->S,nm);
-            snprintf(nm,sizeof(nm),"model.layers.%d.mlp.experts.0.%s.weight.qs",c->first_dense,suf[k]);
-            int64_t q=st_nbytes(&m->S,nm); if(q>0) eb+=q;
+            mp_qs_name(&m->mp,nm,qs,sizeof(qs));
+            int64_t q=st_nbytes(&m->S,qs); if(q>0) eb+=q;
         }
     }
     if(eb<=0) eb = tbytes(c->moe_inter,c->hidden,ebits)*2 + tbytes(c->hidden,c->moe_inter,ebits);
@@ -2511,6 +2513,8 @@ int main(int argc, char **argv){
     if(g_pilot_k<1) g_pilot_k=1;
     g_direct = getenv("DIRECT")?atoi(getenv("DIRECT")):0;
     g_idot = getenv("IDOT")?atoi(getenv("IDOT")):1;        /* 0 = kernel f32 esatti (A/B) */
+    g_i4s = getenv("I4S")?atoi(getenv("I4S")):g_i4s;       /* soglia S int4-IDOT: 1 = anche a S=1 (decode), da misurare su VNNI / S-gate for int4 IDOT, A/B on VNNI */
+    if(g_i4s<1) g_i4s=1;
     g_repin = getenv("REPIN")?atoi(getenv("REPIN")):0;     /* RFC: re-pin ogni n token emessi (0=off) / live re-pin every n emitted tokens (0=off) */
     g_absorb = getenv("ABSORB")?atoi(getenv("ABSORB")):-1; /* -1 auto: assorbita per S<=4 */
     g_dsa_force = getenv("DSA_FORCE")?atoi(getenv("DSA_FORCE")):0;

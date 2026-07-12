@@ -25,10 +25,10 @@ else ifneq ($(IS_WIN),)
 # --- Windows 11 x86-64 (MinGW-w64 / MSYS2) ---
 # GCC + libgomp + winpthreads: pthread, OpenMP, clock_gettime, opendir/readdir,
 # AVX2 intrinsics — tutto gratis, nessun porting.
-# ARCH default = x86-64-v3 (binario portabile con AVX2). Per max velocita'
-# su QUESTA macchina: make ARCH=native
+# ARCH default = native (come Linux: attiva AVX-512 VNNI dove c'e', es. Zen 5).
+# Per un binario PORTABILE da distribuire: make portable (= ARCH=x86-64-v3, solo AVX2).
 CC      = gcc
-ARCH   ?= x86-64-v3
+ARCH   ?= native
 CFLAGS  = -D_FILE_OFFSET_BITS=64 -O3 -march=$(ARCH) -fopenmp -Wall -Wextra -Wno-unused-parameter -Wno-misleading-indentation -Wno-unused-function
 LDFLAGS = -lm -fopenmp -static
 EXE     = .exe
@@ -72,7 +72,7 @@ all: glm$(EXE)
 # phony 'glm' → 'glm.exe' on Windows (so 'make glm' and 'coli build' work on every platform)
 glm: glm$(EXE)
 
-glm$(EXE): glm.c st.h json.h tok.h tok_unicode.h compat.h grammar.h $(CUDA_OBJ)
+glm$(EXE): glm.c st.h json.h tok.h tok_unicode.h compat.h grammar.h model.h $(CUDA_OBJ)
 	$(CC) $(CFLAGS) glm.c $(CUDA_OBJ) -o glm$(EXE) $(LDFLAGS)
 
 backend_cuda.o: backend_cuda.cu backend_cuda.h

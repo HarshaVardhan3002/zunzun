@@ -1,0 +1,23 @@
+# llama.cpp launch presets for Strix Halo (8060S, gfx1151, 128 GB unified).
+# Flags the router substitutes into the launch template. {model} {port} {ctx} filled at spawn.
+# ngl=999 => all layers on iGPU (unified mem, no PCIe copy). fa=on => flash attention.
+# GTT note: raise BIOS "variable graphics memory" so the iGPU can address the model.
+
+defaults:
+  bin: ./bin/llama-server.exe
+  flags: "--host 127.0.0.1 --port {port} -m {model} -c {ctx} -ngl 999 -fa on --no-warmup --jinja"
+
+# Per model-class overrides (matched by the router on registry 'class').
+classes:
+  small:            # <=8B, latency-first, big ctx cheap
+    ctx: 16384
+    extra: "-b 2048"
+  mid:              # ~14-32B dense/MoE, the sweet spot on this chip (~100 tok/s Q4)
+    ctx: 8192
+    extra: "-b 1024"
+  large:            # 70-120B MoE (GPT-OSS-120B ~55 tok/s), ctx tighter to fit KV
+    ctx: 4096
+    extra: "-b 512 --no-mmap"
+
+# ROCm variant (uncomment bin + set env in router if you build the HIP path):
+# rocm_env: { HSA_OVERRIDE_GFX_VERSION: "11.5.1" }
