@@ -1,4 +1,4 @@
-# Testing colibrì without the 500 GB model
+# Testing Zunzun without the 500 GB model
 
 `glm.c` only runs the GLM-5.2 `glm_moe_dsa` architecture, so a generic
 Llama/Qwen/Mistral you already have will NOT load. You don't need the real model

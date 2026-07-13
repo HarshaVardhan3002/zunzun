@@ -31,4 +31,4 @@ Expand-Archive -Force $zip $bin
 Remove-Item $zip
 Write-Host "Done. Binaries in $bin"
 Write-Host "Smoke test:  $bin\llama-server.exe --version"
-Write-Host "Then:        coli-route (see ..\..\router\README) or launch a preset from presets.yaml"
+Write-Host "Then:        zun-route (see ..\..\router\README) or launch a preset from presets.yaml"

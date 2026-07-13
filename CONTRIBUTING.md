@@ -1,6 +1,6 @@
 # Contributing
 
-Keep changes focused and preserve Colibri's dependency-free default CPU path.
+Keep changes focused and preserve Zunzun's dependency-free default CPU path.
 
 ## Local checks
 

@@ -59,7 +59,7 @@ Policy:
 - attention / dense-resident -> GPU when weights resident, else CPU.
 Three lanes overlapped: (a) I/O prefetch thread, (b) CPU OpenMP pool, (c) GPU
 stream. Layer L+1 routing is predicted from layer L post-attention state
-(colibri PILOT, ~71.6% predictable) and feeds the prefetcher so SSD latency hides
+(PILOT, ~71.6% predictable) and feeds the prefetcher so SSD latency hides
 under current-layer compute.
 
 ### 4. Backend (device execution)

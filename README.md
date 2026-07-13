@@ -1,16 +1,21 @@
 <p align="center">
-  <img src="assets/colibri.svg" width="500" alt="colibrì — tiny engine, immense model">
+  <img src="assets/zunzun.svg" width="500" alt="zunzún — tiny engine, immense model">
 </p>
 
 **Tiny engine, immense model.** Run **GLM-5.2 (744B-parameter MoE)** on a consumer machine with ~25 GB of RAM — in pure C, with zero dependencies, by streaming experts from disk.
 
 ```
-$ ./coli chat
-  🐦 colibrì v1.0 — GLM-5.2 · 744B MoE · int4 · streaming CPU
+$ ./zun chat
+  🐦 zunzún v1.0 — GLM-5.2 · 744B MoE · int4 · streaming CPU
   ✓ ready in 32s · resident 9.9 GB
-  › ciao!
-  ◆ Ciao! 😊 Come posso aiutarti oggi?
+  › hello!
+  ◆ Hello! 😊 How can I help you today?
 ```
+
+> **Zunzun** is a fork of [colibrì](https://github.com/JustVugg/colibri) by JustVugg
+> (Apache 2.0 — see `NOTICE`), named after the *zunzuncito*, the Cuban bee hummingbird:
+> the smallest bird in the world. This fork focuses on AMD Strix Halo unified-memory
+> hardware, native Windows support, and I/O-path optimization.
 
 ## The idea
 
@@ -60,7 +65,7 @@ Cold starts are heavy on random reads (~11 GB/token), but reads don't meaningful
 
 ## Download the model
 
-A pre-converted **GLM-5.2 int4** model for colibrì is available on Hugging Face:
+A pre-converted **GLM-5.2 int4** model (built for upstream colibrì; the container is identical) is available on Hugging Face:
 
 **https://huggingface.co/jlnsrk/GLM-5.2-colibri-int4**
 
@@ -69,7 +74,7 @@ If the MTP files there are still the int4 head (see [#8](https://github.com/Just
 Download the repository and point `COLI_MODEL` to its directory:
 
 ```bash
-COLI_MODEL=/path/to/GLM-5.2-colibri-int4 ./coli chat
+COLI_MODEL=/path/to/GLM-5.2-colibri-int4 ./zun chat
 ```
 
 This skips the FP8 → int4 conversion step entirely.
@@ -86,23 +91,23 @@ cd c
 # (never needs the full 756 GB at once), converts to the int4 container, then
 # converts the MTP head for speculative decoding. Resumable at any point.
 # Conversion (only) needs python with: pip install torch safetensors huggingface_hub numpy
-./coli convert --model /nvme/glm52_i4     # ~400 GB free on a real ext4/NVMe path
+./zun convert --model /nvme/glm52_i4     # ~400 GB free on a real ext4/NVMe path
 
 # chat — RAM budget, expert cache and MTP are all detected automatically:
-COLI_MODEL=/nvme/glm52_i4 ./coli chat
+COLI_MODEL=/nvme/glm52_i4 ./zun chat
 ```
 
 Inspect the planned storage hierarchy before loading the model:
 
 ```bash
-COLI_MODEL=/nvme/glm52_i4 ./coli plan
-COLI_MODEL=/nvme/glm52_i4 ./coli plan --gpu 0,1 --ram 128 --vram 48 --json
+COLI_MODEL=/nvme/glm52_i4 ./zun plan
+COLI_MODEL=/nvme/glm52_i4 ./zun plan --gpu 0,1 --ram 128 --vram 48 --json
 
 # apply the bounded plan to the normal runner
-COLI_MODEL=/nvme/glm52_i4 ./coli chat --auto-tier
+COLI_MODEL=/nvme/glm52_i4 ./zun chat --auto-tier
 ```
 
-`coli plan` reads only safetensors headers and reports the model's exact dense/expert
+`zun plan` reads only safetensors headers and reports the model's exact dense/expert
 footprint, runtime RAM reserve, safe expert-cache cap, and bounded VRAM hot tier. Its
 versioned JSON output is intended to be shared by the CLI, API server, Web UI, and
 desktop shell; it does not allocate model tensors or start inference.
@@ -111,17 +116,17 @@ sets the RAM budget and context immediately; the VRAM tier is enabled only when
 the current `glm` binary is linked with CUDA. Explicit flags and environment
 variables keep precedence over automatic values.
 
-Before loading the model, `coli doctor` performs a read-only readiness check and
+Before loading the model, `zun doctor` performs a read-only readiness check and
 explains whether the selected Disk/RAM/VRAM placement is runnable:
 
 ```bash
-COLI_MODEL=/nvme/glm52_i4 ./coli doctor
-COLI_MODEL=/nvme/glm52_i4 ./coli doctor --gpu 0 --ram 128 --json
+COLI_MODEL=/nvme/glm52_i4 ./zun doctor
+COLI_MODEL=/nvme/glm52_i4 ./zun doctor --gpu 0 --ram 128 --json
 ```
 
 Doctor validates the model directory, config, tokenizer, safetensors headers,
 engine executable, available RAM, requested NVIDIA devices, CUDA linkage, and the
-same placement budget used by `coli plan`. It never starts `glm`, reads tensor
+same placement budget used by `zun plan`. It never starts `glm`, reads tensor
 payloads, imports a model framework, or creates a CUDA context. The versioned JSON
 report uses stable check IDs for automation. Warnings keep exit status 0; missing
 requirements or an unsafe RAM projection return 1, while invalid CLI values return 2.
@@ -130,7 +135,7 @@ The engine at runtime is pure C — python is only used by the one-time converte
 
 ### Windows 11 (native, no WSL)
 
-colibrì builds and runs natively on Windows 11 x86-64 with MinGW-w64. The port adds
+Zunzun builds and runs natively on Windows 11 x86-64 with MinGW-w64. The port adds
 a `_WIN32` compatibility layer in `c/compat.h` that maps POSIX I/O to the Windows API
 (pread → ReadFile+OVERLAPPED, posix_fadvise no-op, aligned allocation, MoveFileEx rename,
 GlobalMemoryStatusEx RAM detection). All platform differences stay in `compat.h`; the
@@ -158,8 +163,8 @@ SNAP=./glm_tiny TF=1 ./glm.exe 64 16 16        # expect "32/32 positions"
 
 # Run with real model:
 SNAP=D:\glm52_i4 ./glm.exe 64 4 16            # batch inference
-python coli chat --model D:\glm52_i4            # interactive chat
-python coli serve --model D:\glm52_i4            # OpenAI-compatible API
+python zun chat --model D:\glm52_i4            # interactive chat
+python zun serve --model D:\glm52_i4            # OpenAI-compatible API
 ```
 
 **Status:** Phase 1 complete (compiles, correct, static-linked). O_DIRECT (Phase 2),
@@ -168,20 +173,20 @@ are separate workstreams. See `PORT_WINDOWS_PLAN.md` for the full plan.
 
 ### OpenAI-compatible API
 
-`coli serve` keeps one model process loaded and exposes a text-only OpenAI-compatible
+`zun serve` keeps one model process loaded and exposes a text-only OpenAI-compatible
 HTTP API. The gateway uses only the Python standard library; inference still runs in
 the same dependency-free C engine.
 
 ```bash
 cd c
-COLI_MODEL=/nvme/glm52_i4 COLI_API_KEY=local-secret ./coli serve \
-  --host 127.0.0.1 --port 8000 --model-id glm-5.2-colibri
+COLI_MODEL=/nvme/glm52_i4 COLI_API_KEY=local-secret ./zun serve \
+  --host 127.0.0.1 --port 8000 --model-id glm-5.2-zunzun
 
 curl http://127.0.0.1:8000/v1/chat/completions \
   -H 'Authorization: Bearer local-secret' \
   -H 'Content-Type: application/json' \
   -d '{
-    "model": "glm-5.2-colibri",
+    "model": "glm-5.2-zunzun",
     "messages": [{"role": "user", "content": "Hello"}],
     "stream": true
   }'
@@ -211,17 +216,17 @@ with `--max-queue N` (default 8) and `--queue-timeout SECONDS` (default 300), or
 `COLI_MAX_QUEUE` / `COLI_QUEUE_TIMEOUT` environment variables. Saturated and timed-out
 requests receive OpenAI-shaped HTTP 429 errors before streaming headers are sent.
 `GET /health` exposes active/queued/completed/rejected counters, and successful
-generation responses include `x-colibri-queue-wait-ms`.
+generation responses include `x-zunzun-queue-wait-ms`.
 
 ### Isolated KV contexts
 
-`coli serve --kv-slots N` allocates up to 16 independent sequence contexts. Requests
+`zun serve --kv-slots N` allocates up to 16 independent sequence contexts. Requests
 select one with the optional integer `cache_slot` field; ordinary OpenAI clients omit
 it and keep the original slot 0 behavior.
 
 ```json
 {
-  "model": "glm-5.2-colibri",
+  "model": "glm-5.2-zunzun",
   "messages": [{"role": "user", "content": "Continue this conversation"}],
   "cache_slot": 1
 }
@@ -236,7 +241,8 @@ default 4096-token context, every slot costs hundreds of MB.
 
 ### Experimental resident CUDA backend
 
-colibrì includes an opt-in CUDA backend for model-resident tensors. Streaming
+Zunzun includes an opt-in CUDA backend for model-resident tensors (and a HIP
+backend for AMD iGPUs — `make HIP=1`). Streaming
 experts deliberately remain on the original CPU path for now: copying an expert
 from NVMe to the GPU on every use would only replace the disk bottleneck with a
 PCIe bottleneck. Resident quantized tensors are uploaded lazily once and reused.
@@ -290,8 +296,8 @@ deterministic 313M-parameter `glm_moe_dsa` fixture and run fixed-token replay:
 
 ```bash
 cd c
-python tools/make_glm_bench_model.py --output /nvme/colibri-bench-medium --device cuda
-python tools/benchmark_cuda_fixture.py --model /nvme/colibri-bench-medium --gpu 0
+python tools/make_glm_bench_model.py --output /nvme/zunzun-bench-medium --device cuda
+python tools/benchmark_cuda_fixture.py --model /nvme/zunzun-bench-medium --gpu 0
 ```
 
 The fixture has random weights and is not a language model. It exists only to
@@ -309,17 +315,17 @@ npm ci && npm run dev        # then point it at an OpenAI-compatible endpoint
 ```
 
 It speaks the standard OpenAI Chat Completions protocol with SSE streaming, so it
-works against the colibrì OpenAI-compatible server (in review, #21) or any other
+works against the built-in OpenAI-compatible server or any other
 compatible endpoint. Nothing leaves the endpoint you configure. The terminal
-`coli chat` remains the first-class interface.
+`zun chat` remains the first-class interface.
 
 Useful knobs (env or flags): `--temp T` token sampling temperature (default 0.7 + nucleus 0.90 — tuned for int4; 0 = greedy), `--topp 0.7` adaptive expert top-p (30–40% less disk), `--ngen N` max tokens per answer (`:more` in chat continues a truncated one), `--repin N` adapt RAM/VRAM hot experts every N emitted tokens, `AUTOPIN=0` disable the learning cache's auto-pin, `THINK=1` enable GLM-5.2's reasoning block, `DRAFT=n` MTP draft depth, `GRAMMAR=g.gbnf` grammar-forced drafts for constrained JSON/NDJSON output (`GRAMMAR_DRAFT=n` caps the forced span), `TF=1` teacher-forcing validation, `PILOT=1` router-lookahead disk prefetch (experimental — see below), `CAP_RAISE=0` don't auto-grow the expert cache.
 
-**The expert cache auto-sizes to your RAM** (since 2026-07-10): the engine now *raises* the LRU cap to fill your `--ram` budget instead of only lowering it. Before this fix a 128 GB machine ran with the same 8-experts/layer cache as a 16 GB one (issue #12) — **if you benchmarked colibrì before this date, rerun: your numbers were capped.**
+**The expert cache auto-sizes to your RAM** (since 2026-07-10): the engine now *raises* the LRU cap to fill your `--ram` budget instead of only lowering it. Before this fix a 128 GB machine ran with the same 8-experts/layer cache as a 16 GB one (issue #12) — **if you benchmarked the engine before this date, rerun: your numbers were capped.**
 
 **Router-lookahead prefetch** (`PILOT=1`, experimental): GLM-5.2's expert routing is measurably predictable *ahead of time* — applying layer L+1's router to layer L's post-attention state recalls **71.6%** of the true top-8 (vs 41.3% for "same experts as last token"). `PILOT=1` uses this to issue next-layer expert readahead from a dedicated I/O thread while the current layer computes. On our dev box the disk is already ~80% saturated, so it measures neutral; on machines where compute and disk are balanced (like the Ryzen AI 9 in issue #12: 43% disk / 46% matmul) it should overlap real work — measurements welcome.
 
-**The learning cache**: the engine records which experts your usage actually routes to (`.coli_usage` next to the model, updated every turn) and at startup automatically pins the hottest ones in spare RAM. colibrì literally gets faster the more you use it.
+**The learning cache**: the engine records which experts your usage actually routes to (`.coli_usage` next to the model, updated every turn) and at startup automatically pins the hottest ones in spare RAM. Zunzun literally gets faster the more you use it.
 
 **Live tier adaptation** (`--repin N`, opt-in): at safe turn boundaries, a decaying
 session heat map replaces cold pinned experts with hotter streamed experts. Replacement
@@ -327,11 +333,11 @@ loads the expert from disk into the existing RAM slot; GPU-backed slots immediat
 refresh the same VRAM tier budget. A 25% hysteresis and a four-swap limit prevent tier
 thrashing. Persistent `.coli_usage` remains the long-term signal and is not decayed.
 
-**Conversations reopen warm** (`.coli_kv`, since 2026-07-10): `coli chat` persists the compressed MLA KV-cache to disk after every turn (~182 KB/token, appended incrementally, crash-safe). Close the chat, reopen it tomorrow — the model still remembers the whole conversation and **zero re-prefill happens**: validated byte-identical to an uninterrupted session. `:reset` clears it, `KVSAVE=0` disables it.
+**Conversations reopen warm** (`.coli_kv`, since 2026-07-10): `zun chat` persists the compressed MLA KV-cache to disk after every turn (~182 KB/token, appended incrementally, crash-safe). Close the chat, reopen it tomorrow — the model still remembers the whole conversation and **zero re-prefill happens**: validated byte-identical to an uninterrupted session. `:reset` clears it, `KVSAVE=0` disables it.
 
 ## Got a better machine? Try it — here's what to expect
 
-colibrì was built on deliberately humble hardware (12 cores, 25 GB RAM, NVMe behind a WSL2 VHDX that caps random reads at ~1 GB/s). **Every one of those constraints is a knob your machine can turn up.** The engine needs: Linux (or WSL2), macOS, or **Windows 11 natively (MinGW-w64)**; gcc with OpenMP, AVX2, ≥16 GB RAM, and the ~370 GB int4 model on a local NVMe (ext4/NTFS — never a network/9p mount).
+The upstream engine was built on deliberately humble hardware (12 cores, 25 GB RAM, NVMe behind a WSL2 VHDX that caps random reads at ~1 GB/s). **Every one of those constraints is a knob your machine can turn up.** The engine needs: Linux (or WSL2), macOS, or **Windows 11 natively (MinGW-w64)**; gcc with OpenMP, AVX2, ≥16 GB RAM, and the ~370 GB int4 model on a local NVMe (ext4/NTFS — never a network/9p mount).
 
 **How to test it, in order:**
 
@@ -344,14 +350,14 @@ gcc -O2 -fopenmp iobench.c -o iobench
 ./iobench /path/to/glm52_i4/out-00069.safetensors 19 64 8 1   # O_DIRECT
 
 # 2) chat; watch the per-turn stats line (tok/s, expert hit-rate, RSS):
-COLI_MODEL=/path/to/glm52_i4 ./coli chat
+COLI_MODEL=/path/to/glm52_i4 ./zun chat
 
 # 3) record expert usage, then pin the hottest experts in your spare RAM:
-STATS=stats.txt ./coli chat
-PIN=stats.txt PIN_GB=20 ./coli chat        # scale PIN_GB to your free RAM
+STATS=stats.txt ./zun chat
+PIN=stats.txt PIN_GB=20 ./zun chat        # scale PIN_GB to your free RAM
 
 # 4) quality benchmarks (MMLU/HellaSwag/ARC):
-./coli bench
+./zun bench
 ```
 
 **Back-of-envelope predictions** (decode is disk-bound: a cold token costs ~11.4 GB of expert reads; MTP speculation roughly halves the effective cost *once the cache is warm*; RAM turns cold reads into free cache hits):
@@ -364,11 +370,11 @@ PIN=stats.txt PIN_GB=20 ./coli chat        # scale PIN_GB to your free RAM
 | 128–256 GB RAM, 12 cores (hot experts cached) | ~2–4 tok/s — matmul-bound: ~80 GFLOP/token vs ~250 GFLOP/s of our AVX2 kernels |
 | same RAM + 24–32 cores, or AVX-512/VNNI kernels | ~5–15 tok/s — interactive; kernel work is the multiplier |
 
-These are estimates, not measurements — if you run colibrì on serious hardware, **please open an issue with your numbers**: real datapoints from better machines are exactly what this project needs next.
+These are estimates, not measurements — if you run Zunzun on serious hardware, **please open an issue with your numbers**: real datapoints from better machines are exactly what this project needs next.
 
-### Community benchmarks (measured)
+### Community benchmarks (measured on upstream colibrì)
 
-Real numbers from real machines, stock build (`setup.sh`, gcc 13), greedy decoding, `--ngen 32`, MTP active:
+Real numbers from real machines reported to the [upstream project](https://github.com/JustVugg/colibri), stock build (`setup.sh`, gcc 13), greedy decoding, `--ngen 32`, MTP active:
 
 | machine | disk (iobench, 19 MB × 64, 8 threads) | config | measured |
 |---|---|---|---|
@@ -390,22 +396,24 @@ We have never measured how much the int4 quantization costs in accuracy — the 
 
 ```bash
 cd c
-./coli bench                                   # hellaswag, arc_challenge, mmlu — 40 questions each
-./coli bench hellaswag --limit 200             # one task, more questions
-./coli bench mmlu arc_challenge --ram 100      # pick tasks, set a RAM budget
+./zun bench                                   # hellaswag, arc_challenge, mmlu — 40 questions each
+./zun bench hellaswag --limit 200             # one task, more questions
+./zun bench mmlu arc_challenge --ram 100      # pick tasks, set a RAM budget
 ```
 
 It prints per-task accuracy (log-likelihood scoring, EleutherAI-harness style). Published full-precision GLM-5.2 scores on these tasks sit around 85–95%; if our int4 container lands within a few points, the quantization is validated — if it doesn't, we know to invest in mixed / grouped-scale quantization. **If you have the hardware to run this, please open an issue with the numbers** — it's the measurement the project is missing.
 
-## Supporting the project
+## Lineage & supporting the project
 
-colibrì is a one-person project, written and tested entirely on a 12-core laptop with 25 GB of RAM — the numbers above are the ceiling of what I can measure at home. If this project is useful or interesting to you and you'd like to support its development (better test hardware translates *directly* into a faster engine for everyone: real NVMe scaling data, bigger pinned caches, int2/int3 quality sweeps on real benchmarks), you can:
+Zunzun is a fork of [colibrì](https://github.com/JustVugg/colibri) by Vincenzo (JustVugg) —
+the engine design, the pure-C discipline, and most of what's described above are his work,
+and the project deserves your star. This fork exists to push a specific direction: AMD
+Strix Halo unified-memory hardware (Ryzen AI Max), native Windows, and the I/O path
+(direct reads, async expert pipelines, intent profiles).
 
-- ⭐ star the repo and share it;
+- ⭐ star the [upstream repo](https://github.com/JustVugg/colibri) and this one;
 - 🐛 open issues with benchmark numbers from your hardware;
-- 💬 reach out via GitHub issues if you'd like to sponsor development or donate hardware.
-
-Every contribution, from a datapoint to a disk, moves the ceiling.
+- 💬 reach out via GitHub issues to compare notes on unified-memory boxes.
 
 ## Repo layout
 
@@ -416,7 +424,7 @@ c/
 ├── st.h, tok.h, json.h   runtime headers
 ├── backend_cuda.*        optional CUDA tier
 ├── Makefile              build and local checks
-├── coli                  user-facing CLI
+├── zun                   user-facing CLI
 ├── openai_server.py      OpenAI-compatible HTTP gateway
 ├── setup.sh              one-command local setup
 ├── tools/                offline conversion, fixtures and benchmarks
@@ -432,10 +440,14 @@ runtime dependency of the engine.
 From the repository root, `make`, `make check`, and `make clean` delegate to the
 engine Makefile. Existing commands run from `c/` continue to work unchanged.
 
-## Why "colibrì"
+## Why "zunzún"
 
-The hummingbird weighs a few grams, hovers in place, and visits a thousand flowers a day. This engine keeps a 744-billion-parameter giant alive on hummingbird rations: 25 GB of RAM, twelve CPU cores, and a lot of disk patience.
+The upstream project was colibrì — Italian for hummingbird, an engine that keeps a
+744-billion-parameter giant alive on hummingbird rations. The *zunzuncito* (Cuban bee
+hummingbird, *Mellisuga helenae*) is the **smallest bird on Earth**: two grams, and it
+still does everything a bird does. Same idea, pushed further — the smallest possible
+engine footprint for the biggest possible model.
 
 ## License
 
-Apache 2.0. GLM-5.2 weights are released by Z.ai under MIT.
+Apache 2.0, same as upstream colibrì (see `LICENSE` and `NOTICE`). GLM-5.2 weights are released by Z.ai under MIT.

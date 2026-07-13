@@ -1,20 +1,20 @@
-# Engine catalog for the colibrì routing OS. The gateway classifies each request
-# and dispatches to a backend profile, lazy-spawning it via `coli serve`.
+# Engine catalog for the Zunzun routing OS. The gateway classifies each request
+# and dispatches to a backend profile, lazy-spawning it via `zun serve`.
 # The iGPU is single-owner: only one 'igpu' profile runs at a time (LRU-evicted);
 # 'cpu' profiles coexist. Edit model paths to your machine.
 #
-# As-built (2026-07): colibrì is the engine (CPU streaming + optional HIP iGPU
-# tier). The two colibrì profiles below are the same model at different device
+# As-built (2026-07): Zunzun is the engine (CPU streaming + optional HIP iGPU
+# tier). The two Zunzun profiles below are the same model at different device
 # tiers; the gateway picks per request. llama.cpp entries are optional examples
 # (uncomment once engines/llamacpp is set up and you have resident GGUFs).
 
 gpu_vram_gb: 96          # GTT carveout the iGPU may use (BIOS variable graphics memory)
 idle_timeout_s: 300      # reap an idle backend after this many seconds
-default: colibri-gpu     # where 'model: auto' lands
+default: zunzun-gpu     # where 'model: auto' lands
 
 engines:
-  - name: colibri-gpu
-    engine: colibri
+  - name: zunzun-gpu
+    engine: zunzun
     class: mid
     model: C:\models\glm52_i4
     device: igpu
@@ -22,8 +22,8 @@ engines:
     port: 8110
     env: { COLI_HIP: "1", CUDA_DENSE: "1", CUDA_EXPERT_GB: "16", MTP: "1", TOPP: "0.7" }
 
-  - name: colibri-cpu
-    engine: colibri
+  - name: zunzun-cpu
+    engine: zunzun
     class: xlarge
     model: C:\models\glm52_i4
     device: cpu

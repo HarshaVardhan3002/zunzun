@@ -1,5 +1,5 @@
 {
-  description = "colibrì — run GLM-5.2 (744B MoE) on a consumer machine with ~25 GB RAM";
+  description = "zunzún — run GLM-5.2 (744B MoE) on a consumer machine with ~25 GB RAM";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
@@ -19,8 +19,8 @@
           numpy
         ]);
 
-        colibri = pkgs.stdenv.mkDerivation {
-          pname = "colibri";
+        zunzun = pkgs.stdenv.mkDerivation {
+          pname = "zunzun";
           version = "1.0";
           src = ./.;
 
@@ -45,14 +45,14 @@
             mkdir -p $out/bin
             cp c/glm $out/bin/glm
 
-            # Wrap coli (the Python CLI) so it finds the right python and the engine
-            mkdir -p $out/share/colibri
-            cp c/coli $out/share/colibri/coli
-            chmod +x $out/share/colibri/coli
-            cp -r c/tools $out/share/colibri/tools
+            # Wrap zun (the Python CLI) so it finds the right python and the engine
+            mkdir -p $out/share/zunzun
+            cp c/zun $out/share/zunzun/zun
+            chmod +x $out/share/zunzun/zun
+            cp -r c/tools $out/share/zunzun/tools
 
-            makeWrapper ${pythonEnv}/bin/python $out/bin/coli \
-              --add-flags "$out/share/colibri/coli" \
+            makeWrapper ${pythonEnv}/bin/python $out/bin/zun \
+              --add-flags "$out/share/zunzun/zun" \
               --set PYTHONPATH "${pythonEnv}/${pkgs.python3.sitePackages}"
             runHook postInstall
           '';
@@ -69,7 +69,7 @@
 
           meta = with pkgs.lib; {
             description = "Run GLM-5.2 (744B MoE) on a consumer machine with ~25 GB RAM";
-            homepage = "https://github.com/JustVugg/colibri";
+            homepage = "https://github.com/HarshaVardhan3002/zunzun";
             license = licenses.asl20;
             platforms = platforms.linux;
             mainProgram = "glm";
@@ -78,23 +78,23 @@
       in
       rec {
         packages = {
-          default = colibri;
-          inherit colibri;
+          default = zunzun;
+          inherit zunzun;
         };
 
         apps = {
           default = {
             type = "app";
-            program = "${colibri}/bin/glm";
+            program = "${zunzun}/bin/glm";
           };
-          coli = {
+          zun = {
             type = "app";
-            program = "${colibri}/bin/coli";
+            program = "${zunzun}/bin/zun";
           };
         };
 
         devShells.default = pkgs.mkShell {
-          inputsFrom = [ colibri ];
+          inputsFrom = [ zunzun ];
 
           packages = [
             pythonEnv
@@ -105,12 +105,12 @@
           ];
 
           shellHook = ''
-            echo "🐦 colibrì dev shell"
+            echo "🐦 zunzún dev shell"
             echo "  gcc: $(gcc --version | head -1)"
             echo "  python: $(python3 --version)"
             echo ""
             echo "Build the engine:   make -C c glm"
-            echo "Run the converter:  python c/coli convert --model /path/to/glm52_i4"
+            echo "Run the converter:  python c/zun convert --model /path/to/glm52_i4"
             echo "Chat:               COLI_MODEL=/path/to/glm52_i4 ./c/glm ..."
           '';
         };

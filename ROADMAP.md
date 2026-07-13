@@ -1,14 +1,14 @@
-# Colibrì → MoE Routing OS — Roadmap
+# Zunzun → MoE Routing OS — Roadmap
 
 Target hardware: Ryzen AI Max+ 395 (Strix Halo), 128 GB LPDDR5X unified, Radeon 8060S (gfx1151), XDNA2 NPU (50 TOPS), 16× Zen 5. Windows 11 primary, Linux for benching.
 
 ## Direction (2026-07-12, runtime-first)
 Thesis: **heterogeneous unified-memory runtime for streamed MoE**, not another engine.
-colibrì grows its own CPU+GPU co-execution on a single zero-copy expert cache. Full
+Zunzun grows its own CPU+GPU co-execution on a single zero-copy expert cache. Full
 design in **ARCHITECTURE.md**. llama.cpp is demoted to baseline/reference; the gateway
 (`router/`) survives as an optional top layer (R5), not the thesis.
 - **runtime** = the 4-subsystem stack (ModelProvider / ExpertCache / Scheduler / Backend); model-agnostic (GLM/DeepSeek/Qwen).
-- **colibrì engine** = becomes the reference implementation of that runtime.
+- **Zunzun engine** = becomes the reference implementation of that runtime.
 - **gateway** = optional multi-model front door on top.
 - **XDNA / NPU** = out of scope for now (prefill-only at best; see engines/ggml-xdna/DESIGN.md).
 

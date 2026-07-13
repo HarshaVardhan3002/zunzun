@@ -1,12 +1,12 @@
-# Running GLM-5.2 (744B) on colibrì — Strix Halo + DGX Spark
+# Running GLM-5.2 (744B) on Zunzun — Strix Halo + DGX Spark
 
-Pre-converted colibrì int4 model, no FP8 download / conversion needed. Tuned for
+Pre-converted int4 model (colibrì container, identical format), no FP8 download / conversion needed. Tuned for
 your box: Ryzen AI Max+ 395 (16C Zen 5, Radeon 8060S / RDNA 3.5 40 CU, 128 GB
 LPDDR5X-8000, 80 W APU), and portable to an NVIDIA DGX Spark (arm64 Blackwell,
 128 GB unified) with a one-flag toggle.
 
 ## 0. Pick the right model (MTP matters)
-Two pre-converted colibrì repos exist. **Use the int8-MTP one** — the other's MTP
+Two pre-converted model repos exist (published for upstream colibrì; the container is the same). **Use the int8-MTP one** — the other's MTP
 head is int4 and speculative decoding won't fire (0-4% draft acceptance):
 
 | repo | MTP head | decode |
@@ -35,29 +35,29 @@ The int4 container is identical on both machines; only the engine build changes.
 | either, CPU-only | `make` | native | none |
 
 ```
-cd colibri/c && ./setup.sh
+cd zunzun/c && ./setup.sh
 make HIP=1        # Strix Halo   (ROCM_PATH=... if ROCm isn't at 7.1)
 # make CUDA=1     # DGX Spark    (CUDA_ARCH=native picks Blackwell)
 ```
-Same `coli` commands run on both after this. (DGX/arm64+CUDA path is wired via the
+Same `zun` commands run on both after this. (DGX/arm64+CUDA path is wired via the
 coli_gpu_* seam + NEON kernels; not yet run on DGX hardware — report back.)
 
 ## 3. Run
 ```
 # CPU-only baseline (auto RAM budget, expert cache, MTP)
-COLI_MODEL=/nvme/glm52_i4 ./coli chat
+COLI_MODEL=/nvme/glm52_i4 ./zun chat
 
 # iGPU accelerated (Strix): resident dense + hot experts mirrored to VRAM
-COLI_HIP=1 CUDA_DENSE=1 CUDA_EXPERT_GB=24 COLI_MODEL=/nvme/glm52_i4 ./coli chat
+COLI_HIP=1 CUDA_DENSE=1 CUDA_EXPERT_GB=24 COLI_MODEL=/nvme/glm52_i4 ./zun chat
 # or let the planner size it (detects the 8060S via PyTorch-rocm — use your 3.12 interpreter):
-COLI_MODEL=/nvme/glm52_i4 ./coli chat --auto-tier
+COLI_MODEL=/nvme/glm52_i4 ./zun chat --auto-tier
 ```
 
 ## 4. The BIOS memory split — read this first (biggest lever)
 
 Measured on this box: the BIOS carves **96 GB of the 128 GB as dedicated iGPU
-VRAM**, so Windows sees only ~32 GB system RAM. This is backwards for colibrì:
-- colibrì's speed comes from the **RAM** expert LRU cache; 32 GB gives only ~1-2
+VRAM**, so Windows sees only ~32 GB system RAM. This is backwards for Zunzun:
+- the engine's speed comes from the **RAM** expert LRU cache; 32 GB gives only ~1-2
   slots/layer, so warm hit rate plateaus ~30-40% (not the 60-71% a big cache gives).
 - On a unified APU the iGPU reaches system RAM via GTT anyway, and hot experts are
   mirrored into VRAM (`CUDA_EXPERT_GB`) — so a 96 GB VRAM carveout is oversized and
@@ -89,7 +89,7 @@ compute-bound, so don't chase GPU utilization — the R3 scheduler keeps tiny S=
 matmuls on CPU where GPU dispatch would only add power draw and latency.
 
 ## 5. Perf reality — OS matters a lot here
-This is a 370 GB model streamed from NVMe; disk I/O dominates. colibrì's async
+This is a 370 GB model streamed from NVMe; disk I/O dominates. The engine's async
 prefetch (`PILOT`/`PREFETCH`), `mlock` pinning, and `O_DIRECT` all rely on POSIX.
 
 - **Native Linux: fastest.** `posix_fadvise` readahead, `mlock`, `O_DIRECT` all work.

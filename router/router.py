@@ -2,7 +2,7 @@
 """colibrì router — OpenAI-compatible gateway over multiple local engines.
 
 Classifies each request, arbitrates the single-owner iGPU, lazy-spawns the
-backend (llama-server or `coli serve`), proxies streaming, reaps idle engines.
+backend (llama-server or `zun serve`), proxies streaming, reaps idle engines.
 Stdlib only. Config: registry.yaml (+ ../engines/llamacpp/presets.yaml).
 
   python router.py                 # serve on :8080
@@ -101,9 +101,9 @@ class Backend:
             flags = d["flags"].format(port=s["port"], model=s["model"], ctx=ctx)
             binp = os.path.join(ROOT, "engines", "llamacpp", d["bin"].lstrip("./").replace("/", os.sep))
             return [binp, *flags.split(), *str(cls.get("extra","")).split()]
-        # colibrì: OpenAI server built into coli
-        coli = os.path.join(ROOT, "c", "coli")
-        return [sys.executable, coli, "serve", "--model", s["model"],
+        # Zunzun: OpenAI server built into the zun CLI
+        zun = os.path.join(ROOT, "c", "zun")
+        return [sys.executable, zun, "serve", "--model", s["model"],
                 "--host", "127.0.0.1", "--port", str(s["port"])]
     def env(self):
         e = dict(os.environ); e.update({k: str(v) for k, v in (self.spec.get("env") or {}).items()}); return e
@@ -196,7 +196,7 @@ class Handler(BaseHTTPRequestHandler):
         except (urllib.error.URLError, OSError) as e: return self._json(502, {"error":str(e)})
         self.send_response(up.status if hasattr(up,"status") else 200)
         self.send_header("Content-Type", up.headers.get("Content-Type","application/json"))
-        self.send_header("X-Coli-Engine", name)
+        self.send_header("X-Zun-Engine", name)
         if stream: self.send_header("Transfer-Encoding","chunked")
         self.end_headers()
         try:
