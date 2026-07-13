@@ -948,6 +948,8 @@ static void expert_load(Model *m, int layer, int eid, ESlot *s){
             int64_t len=(need+4095)&~4095LL;
             ssize_t r=pread(dfd, s->slab, len, base);
             if(r>=need){
+                static int announced=0;              /* una tantum: conferma che il path DIRECT e' attivo */
+                if(!announced){ announced=1; fprintf(stderr,"[DIRECT] unbuffered expert reads active\n"); }
                 pos[ord[0]]=off0-base; pos[ord[1]]=pos[ord[0]]+tw[ord[0]]->nbytes;
                 pos[ord[2]]=pos[ord[1]]+tw[ord[1]]->nbytes; done=1;
             }
@@ -1999,7 +2001,7 @@ static void run_text(Model *m, const char *snap, const char *prompt, int ngen){
     usage_save(m);
 }
 
-/* modalita' SERVE (per la CLI 'coli'): carica il modello UNA volta, poi CHAT conversazionale.
+/* modalita' SERVE (per la CLI 'zun'): carica il modello UNA volta, poi CHAT conversazionale.
  * KV-cache PERSISTENTE tra i turni: la storia resta in cache, si fa il prefill solo dei
  * token NUOVI -> il modello RICORDA la conversazione e non ri-processa il passato (lossless,
  * piu' umano, piu' veloce). Template chat GLM con token speciali (CHAT_TEMPLATE=0 -> grezzo).
@@ -2174,6 +2176,13 @@ static void serve_ctx_free(Model *m, ServeCtx *s){
 }
 
 static void run_serve(Model *m, const char *snap){
+#ifdef _WIN32
+    /* the serve protocol is byte-exact (sentinels, length-prefixed prompts):
+     * without this the CRT rewrites \n as \r\n and zun never sees READY/END */
+    fflush(stdout);
+    _setmode(_fileno(stdout),_O_BINARY);
+    _setmode(_fileno(stdin),_O_BINARY);
+#endif
     char tkp[2048]; snprintf(tkp,sizeof(tkp),"%s/tokenizer.json",snap);
     Tok T; tok_load(&T,tkp);
     int eos=tok_id_of(&T,"<|endoftext|>");
@@ -2349,7 +2358,7 @@ static void stats_dump(Model *m, const char *path){ stats_dump_q(m,path,0); }
 
 /* CACHE CHE IMPARA: istogramma d'uso PERSISTENTE in <SNAP>/.coli_usage.
  * Caricato all'avvio (i contatori ripartono dalla storia), salvato a ogni turno:
- * piu' usi colibri', meglio l'auto-pin conosce i TUOI expert caldi. */
+ * piu' usi zunzun, meglio l'auto-pin conosce i TUOI expert caldi. */
 static char g_usage_path[2100]="";
 static int64_t usage_load(Model *m, const char *path){
     FILE *f=fopen(path,"r"); if(!f) return 0;
@@ -2360,7 +2369,7 @@ static int64_t usage_load(Model *m, const char *path){
 }
 static void usage_save(Model *m){ if(g_usage_path[0]) stats_dump_q(m,g_usage_path,1); }
 
-/* HOT-STORE ("il redis del colibri'"): carica in RAM, UNA VOLTA e per sempre, i top expert
+/* HOT-STORE ("il redis dello zunzun"): carica in RAM, UNA VOLTA e per sempre, i top expert
  * per frequenza d'uso misurata (file STATS di un run precedente), entro un budget in GB.
  * Ogni hit evita una lettura dal disco lento. */
 /* MLOCK: inchioda in RAM fisica gli expert pinnati cosi' il compressore di memoria di
@@ -2583,7 +2592,7 @@ static void cap_for_ram(Model *m, double ram_gb, int ebits, int max_ctx){
     } else {
         /* AUTO-RAISE (issue #12): il budget consente PIU' cache di quella chiesta.
          * Senza questo, una macchina da 128 GB girava con la LRU di una da 16
-         * (cap=8 di default in coli): hit 23-28% con decine di GB inutilizzati.
+         * (cap=8 di default in zun): hit 23-28% con decine di GB inutilizzati.
          * Tetto a n_experts: oltre, ogni layer avrebbe slot che non puo' riempire.
          * CAP_RAISE=0 ripristina il comportamento fisso. */
         int raise_on = getenv("CAP_RAISE")?atoi(getenv("CAP_RAISE")):1;
@@ -2704,7 +2713,7 @@ int main(int argc, char **argv){
     printf("loaded in %.2fs | resident dense: %.2f MB | layers=%d experts=%d | MTP %s (draft=%d)\n",
            now_s()-t0, m.resident_bytes/(1024.0*1024.0), m.c.n_layers, m.c.n_experts,
            m.has_mtp?"ACTIVE":"absent", g_draft);
-    /* anche su stderr: e' il canale che le UI (coli) mostrano all'utente */
+    /* anche su stderr: e' il canale che le UI (zun) mostrano all'utente */
     fprintf(stderr,"[MTP] %s (draft=%d)\n", m.has_mtp?"active: native speculative decoding":"absent", g_draft);
     if(!strncmp(snap,"/mnt/",5))
         fprintf(stderr,"WARNING: the model is on %s (slow 9p/Windows filesystem; fadvise is ineffective).\n"
@@ -2737,7 +2746,7 @@ int main(int argc, char **argv){
     /* modo scoring per benchmark: SCORE=<requests.txt> -> log-likelihood per riga */
     if(getenv("SCORE")){ run_score(&m, getenv("SCORE")); if(stats) stats_dump(&m,stats); return 0; }
 
-    /* modo serve persistente per la CLI 'coli': SERVE=1 */
+    /* modo serve persistente per la CLI 'zun': SERVE=1 */
     if(getenv("SERVE")){ run_serve(&m, snap); if(stats) stats_dump(&m,stats); return 0; }
 
     /* modo testo reale: PROMPT="..." [NGEN=n] -> tokenizza, genera, detokenizza */
