@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# colibrì — installazione su una macchina nuova (Linux x86-64, macOS, Windows/MinGW).
+# zunzún — installazione su una macchina nuova (Linux x86-64, macOS, Windows/MinGW).
 # Compila il motore e fa un self-test. Il MODELLO (~372 GB int4) va copiato a parte
-# o rigenerato con: coli convert --model <dir-su-ext4/NVMe>
+# o rigenerato con: zun convert --model <dir-su-ext4/NVMe>
 set -e
 cd "$(dirname "$0")"
-echo "🐦 colibrì — setup"
+echo "🐦 zunzún — setup"
 
 UNAME_S=$(uname -s)
 
@@ -56,9 +56,9 @@ esac
 echo "  RAM: ${ram} GB   (more RAM = more cached experts = faster inference)"
 echo
 echo "ready. Next steps:"
-echo "  ./coli build           # already done"
-echo "  ./coli convert --model /path/on/NVMe/glm52_i4     # generate the int4 model (hours)"
-echo "  ./coli info  --model /path/on/NVMe/glm52_i4"
-echo "  ./coli chat  --model /path/on/NVMe/glm52_i4 --ram <GB>"
+echo "  ./zun build           # already done"
+echo "  ./zun convert --model /path/on/NVMe/glm52_i4     # generate the int4 model (hours)"
+echo "  ./zun info  --model /path/on/NVMe/glm52_i4"
+echo "  ./zun chat  --model /path/on/NVMe/glm52_i4 --ram <GB>"
 echo
 echo "IMPORTANT: keep the model on fast storage (NVMe/ext4), never on /mnt/c or a network mount."

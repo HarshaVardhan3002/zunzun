@@ -28,7 +28,7 @@ graph_compute(cgraph)                    # intercept MUL_MAT, else fall through
 ```
 
 ## Hard parts (the months)
-1. **int4 → AIE tiles.** colibrì/GGUF weights are int4-packed; XDNA2 GEMM wants
+1. **int4 → AIE tiles.** zunzun/GGUF weights are int4-packed; XDNA2 GEMM wants
    int8 tiles in a specific layout. Need an unpack+repack that isn't slower than
    the matmul it feeds.
 2. **Tile scheduling.** MLIR-AIE tiling of GEMM across the AIE array; correctness

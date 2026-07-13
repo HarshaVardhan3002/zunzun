@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Hardware and model placement planning for colibri's disk/RAM/VRAM tiers."""
+"""Hardware and model placement planning for zunzun's disk/RAM/VRAM tiers."""
 
 import json
 import os
@@ -162,7 +162,7 @@ def _discover_amd():
 def _discover_torch():
     """Fallback: PyTorch's runtime view (rocm or cuda build). This is what sees
     the GPU on Windows ROCm boxes that ship no rocm-smi/amd-smi. Optional: if
-    torch is absent (or the wrong interpreter), degrades to []. Run `coli` with
+    torch is absent (or the wrong interpreter), degrades to []. Run `zun` with
     the ROCm-torch interpreter for this to fire."""
     try:
         import torch

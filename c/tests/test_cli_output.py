@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 HERE = Path(__file__).resolve().parent.parent
-CLI = HERE / "coli"
+CLI = HERE / "zun"
 
 
 class CliOutputLanguageTest(unittest.TestCase):

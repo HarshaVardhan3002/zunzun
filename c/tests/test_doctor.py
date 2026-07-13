@@ -148,7 +148,7 @@ class DoctorTest(unittest.TestCase):
         self.assertTrue(output.endswith("result ok"))
 
     def test_cli_json_is_machine_readable_without_loading_model(self):
-        cli = Path(__file__).parents[1] / "coli"
+        cli = Path(__file__).parents[1] / "zun"
         run = subprocess.run([
             sys.executable, str(cli), "doctor", "--model", str(self.model),
             "--gpu", "none", "--ram", "16", "--ctx", "32", "--json",

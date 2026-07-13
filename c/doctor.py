@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only installation diagnostics for colibri."""
+"""Read-only installation diagnostics for zunzun."""
 
 import os
 import json
@@ -149,7 +149,7 @@ def run_doctor(model, ram_gb=0, context=4096, gpu_indices=None, vram_gb=0, *,
 
 def format_doctor(report):
     icons = {"pass": "ok", "warn": "warn", "fail": "fail", "skip": "skip"}
-    lines = [f"colibri doctor · {report['model']}"]
+    lines = [f"zunzun doctor · {report['model']}"]
     for check in report["checks"]:
         lines.append(f"[{icons[check['status']]:>4}] {check['id']:<18} {check['summary']}")
     if report["plan"]:

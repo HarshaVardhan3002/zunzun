@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dependency-free OpenAI-compatible HTTP gateway for the colibri engine."""
+"""Dependency-free OpenAI-compatible HTTP gateway for the zunzun engine."""
 
 import argparse
 import codecs
@@ -142,7 +142,7 @@ def content_text(content, param):
     parts = []
     for index, part in enumerate(content):
         if not isinstance(part, dict) or part.get("type") not in ("text", "input_text"):
-            raise APIError(400, "Colibri currently supports text message content only.",
+            raise APIError(400, "Zunzun currently supports text message content only.",
                            f"{param}.{index}", "unsupported_content_type")
         if not isinstance(part.get("text"), str):
             raise APIError(400, "Text content parts require a string `text` field.",
@@ -180,7 +180,7 @@ def render_chat(messages, enable_thinking=False, reasoning_effort=None):
 
 def generation_options(body, limit):
     if body.get("n", 1) != 1:
-        raise APIError(400, "Colibri currently supports `n=1` only.", "n", "unsupported_value")
+        raise APIError(400, "Zunzun currently supports `n=1` only.", "n", "unsupported_value")
     for name in ("tools", "functions"):
         if body.get(name):
             raise APIError(400, f"`{name}` is not supported yet.", name, "unsupported_parameter")
@@ -222,7 +222,7 @@ def read_engine_turn(stream, sentinel, on_bytes):
     while True:
         byte = stream.read(1)
         if byte == b"":
-            raise RuntimeError("colibri engine exited unexpectedly")
+            raise RuntimeError("zunzun engine exited unexpectedly")
         pending += byte
         if pending.endswith(sentinel):
             data = pending[:-len(sentinel)]
@@ -273,7 +273,7 @@ class Engine:
 
         with self.lock:
             if self.process.poll() is not None:
-                raise RuntimeError("colibri engine is not running")
+                raise RuntimeError("zunzun engine is not running")
             header = (f"\x02PROMPT {len(payload)} {max_tokens} {temperature:.8g} "
                       f"{top_p:.8g} {cache_slot}\n").encode()
             self.process.stdin.write(header + payload + b"\n")
@@ -294,7 +294,7 @@ class Engine:
 
 
 def model_object(model_id, created):
-    return {"id": model_id, "object": "model", "created": created, "owned_by": "colibri"}
+    return {"id": model_id, "object": "model", "created": created, "owned_by": "zunzun"}
 
 
 class APIServer(ThreadingHTTPServer):
@@ -316,7 +316,7 @@ class APIServer(ThreadingHTTPServer):
 
 class APIHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
-    server_version = "colibri"
+    server_version = "zunzun"
 
     def log_message(self, fmt, *args):
         sys.stderr.write("[api] %s - %s\n" % (self.address_string(), fmt % args))
@@ -418,7 +418,7 @@ class APIHandler(BaseHTTPRequestHandler):
             pass
         except Exception as error:
             self.log_error("request failed: %s", error)
-            api_error = APIError(500, "The colibri engine failed to process the request.",
+            api_error = APIError(500, "The zunzun engine failed to process the request.",
                                  None, "engine_error", "server_error")
             try:
                 self.send_json(500, error_object(api_error), request_id)
@@ -544,11 +544,11 @@ class APIHandler(BaseHTTPRequestHandler):
     def completion(self, body, request_id):
         prompt = body.get("prompt")
         if not isinstance(prompt, str):
-            raise APIError(400, "Colibri currently requires `prompt` to be a string.", "prompt")
+            raise APIError(400, "Zunzun currently requires `prompt` to be a string.", "prompt")
         self.generation(body, prompt, request_id, False)
 
 
-def serve(model, host="127.0.0.1", port=8000, model_id="glm-5.2-colibri", api_key=None,
+def serve(model, host="127.0.0.1", port=8000, model_id="glm-5.2-zunzun", api_key=None,
           cap=8, max_tokens=1024, engine=HERE / "glm", env=None, cors_origins=None,
           max_queue=8, queue_timeout=300, kv_slots=1):
     if not 1 <= max_tokens:

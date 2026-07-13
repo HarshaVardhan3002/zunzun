@@ -72,7 +72,7 @@ class ResourcePlanTest(unittest.TestCase):
         self.assertIn("not detected", plan["warnings"][0])
 
     def test_cli_emits_versioned_json(self):
-        cli = Path(__file__).parents[1] / "coli"
+        cli = Path(__file__).parents[1] / "zun"
         run = subprocess.run([
             sys.executable, str(cli), "plan", "--model", str(self.model),
             "--gpu", "none", "--json",

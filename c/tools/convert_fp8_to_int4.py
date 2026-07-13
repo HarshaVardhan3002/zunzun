@@ -264,7 +264,7 @@ def main():
             s0, s1 = segs[t]
             while done[t] < s1 - s0 and not stopfail:
                 pos = s0 + done[t]
-                req = urllib.request.Request(url, headers={"User-Agent": "colibri-convert",
+                req = urllib.request.Request(url, headers={"User-Agent": "zunzun-convert",
                                                            "Range": f"bytes={pos}-{s1-1}"})
                 try:
                     with urllib.request.urlopen(req, timeout=8) as r:
@@ -326,7 +326,7 @@ def main():
             have = os.path.getsize(part) if os.path.exists(part) else 0
             if expected is not None and have >= expected: break
             have0 = have
-            req = urllib.request.Request(url, headers={"User-Agent": "colibri-convert"})
+            req = urllib.request.Request(url, headers={"User-Agent": "zunzun-convert"})
             if have: req.add_header("Range", f"bytes={have}-")
             try:
                 with urllib.request.urlopen(req, timeout=8) as r:

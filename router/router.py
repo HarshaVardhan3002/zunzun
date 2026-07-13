@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""colibrì router — OpenAI-compatible gateway over multiple local engines.
+"""zunzún router — OpenAI-compatible gateway over multiple local engines.
 
 Classifies each request, arbitrates the single-owner iGPU, lazy-spawns the
 backend (llama-server or `zun serve`), proxies streaming, reaps idle engines.
@@ -212,7 +212,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     port = int(os.environ.get("COLI_ROUTER_PORT", 8080))
     threading.Thread(target=ARB.reap, daemon=True).start()
-    print(f"colibrì router :{port}  engines={list(ENGINES)}  default={DEFAULT}")
+    print(f"zunzún router :{port}  engines={list(ENGINES)}  default={DEFAULT}")
     ThreadingHTTPServer(("127.0.0.1", port), Handler).serve_forever()
 
 if __name__ == "__main__":

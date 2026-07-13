@@ -84,7 +84,7 @@ endif
 
 all: glm$(EXE)
 
-# phony 'glm' → 'glm.exe' on Windows (so 'make glm' and 'coli build' work on every platform)
+# phony 'glm' → 'glm.exe' on Windows (so 'make glm' and 'zun build' work on every platform)
 glm: glm$(EXE)
 
 glm$(EXE): glm.c st.h json.h tok.h tok_unicode.h compat.h grammar.h model.h cache.h sched.h backend.h $(CUDA_OBJ) $(HIP_OBJ)

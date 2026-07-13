@@ -1,4 +1,8 @@
 *.exe
+*.o
 glm_tiny/
 olmoe_hf/
 olmoe_i4/
+tests/test_cache
+tests/test_sched
+tests/test_profile

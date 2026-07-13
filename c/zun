@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-colibrì — tiny engine, immense model.
+zunzún — tiny engine, immense model.
 Run GLM-5.2 (744B) locally on CPU with roughly 15-26 GB of RAM.
 
-  coli chat                 interactive chat (loads the model once)
-  coli serve                OpenAI-compatible HTTP API (persistent engine)
-  coli run "prompt"         one-shot generation
-  coli info                 model, RAM, disk, and configuration status
-  coli plan                 Disk / RAM / VRAM resource plan
-  coli doctor               installation and execution-plan diagnostics
-  coli bench [task...]      quality benchmarks (MMLU/HellaSwag/...)
-  coli convert              convert GLM-5.2-FP8 to int4, one shard at a time
-  coli build                build the engine
+  zun chat                 interactive chat (loads the model once)
+  zun serve                OpenAI-compatible HTTP API (persistent engine)
+  zun run "prompt"         one-shot generation
+  zun info                 model, RAM, disk, and configuration status
+  zun plan                 Disk / RAM / VRAM resource plan
+  zun doctor               installation and execution-plan diagnostics
+  zun bench [task...]      quality benchmarks (MMLU/HellaSwag/...)
+  zun convert              convert GLM-5.2-FP8 to int4, one shard at a time
+  zun build                build the engine
 
 Configuration through environment variables or flags (also valid after the subcommand):
   COLI_MODEL=<dir>   model directory (default /home/vincenzo/glm52_i4)
@@ -39,6 +39,7 @@ READY = b"\x01\x01READY\x01\x01\n"
 def _c(n): return f"\033[38;5;{n}m"
 class C:
     teal=_c(37); cyan=_c(80); mag=_c(170); org=_c(208); grn=_c(78); yel=_c(179)
+    red=_c(160)
     dim="\033[2m"; b="\033[1m"; r="\033[0m"; gray=_c(242); dgray=_c(238)
     @staticmethod
     def off():
@@ -47,20 +48,20 @@ class C:
 TTY = sys.stdout.isatty() or os.environ.get("COLI_COLOR")=="1"
 if not TTY: C.off()
 
-# ---------- colibrì 8-bit (pixel art, 2 pixel verticali per carattere) ----------
+# ---------- zunzún 8-bit (pixel art, 2 pixel verticali per carattere) ----------
 SPRITE = [
-    "....MMM.........",
-    "...MMMMM..w.....",
-    "....MMMM.ww.....",
-    "OOOOTTeTCC......",
-    "....TTTTTCC.....",
-    ".....TTTTCC.....",
-    "......TTCC......",
-    ".......TC.......",
-    "........C.......",
-    "................",
+    "...RRR..........",
+    "..RRRRR.........",
+    "..RRRRR..L......",
+    "...dddd.LL......",
+    ".OOrReRLL.......",
+    "...rrRRRLr......",
+    "....rrRRrr......",
+    ".....rrRr.......",
+    "......dr........",
+    ".......d........",
 ]
-PAL = {"M":170, "T":37, "C":80, "O":208, "e":231, "w":80, ".":None}
+PAL = {"R":196, "r":160, "d":124, "L":203, "O":208, "e":231, ".":None}
 
 def sprite_lines():
     if not TTY:
@@ -81,7 +82,7 @@ def sprite_lines():
 def banner(sub=""):
     sp=sprite_lines()
     txt=[
-        f"{C.teal}{C.b}colibrì{C.r} {C.dim}v1.0{C.r}",
+        f"{C.red}{C.b}zunzún{C.r} {C.dim}v1.0{C.r}",
         f"{C.dim}tiny engine, immense model{C.r}",
         f"{C.gray}GLM-5.2 · 744B MoE · int4 · streaming CPU{C.r}",
         f"{C.dgray}{sub}{C.r}" if sub else "",
@@ -104,7 +105,7 @@ def need_model(model):
     if not os.path.exists(os.path.join(model,"tokenizer.json")):
         sys.exit(f"{C.yel}tokenizer.json is missing from {model}{C.r}")
     if not os.path.exists(GLM):
-        sys.exit(f"{C.yel}engine is not built.{C.r} Run: coli build")
+        sys.exit(f"{C.yel}engine is not built.{C.r} Run: zun build")
 
 def cuda_binary():
     """True if the engine links a GPU runtime: NVIDIA (libcudart/cudart) or AMD
@@ -317,7 +318,7 @@ def cmd_info(a):
         row("disk", f"{fs.free/1e9:.0f} GB free")
     except OSError:
         row("disk", "? GB (unavailable)")
-    row("engine", "ready ✓" if os.path.exists(GLM) else "not built (coli build)")
+    row("engine", "ready ✓" if os.path.exists(GLM) else "not built (zun build)")
     knobs=[]
     if a.ram: knobs.append(f"ram {a.ram}GB")
     if a.topp: knobs.append(f"topp {a.topp}")
@@ -360,7 +361,7 @@ def cmd_doctor(a):
 
 def cmd_run(a):
     need_model(a.model)
-    prompt=" ".join(a.prompt) if a.prompt else sys.exit('usage: coli run "your prompt"')
+    prompt=" ".join(a.prompt) if a.prompt else sys.exit('usage: zun run "your prompt"')
     banner("run")
     # template ufficiale GLM-5.2: niente \n dopo i ruoli; <think></think> = risposta diretta (nothink)
     e=env_for(a); e["PROMPT"]=f"[gMASK]<sop><|user|>{prompt}<|assistant|><think></think>"
@@ -426,7 +427,7 @@ def cmd_chat(a):
                 p.stdin.write(b"\x02MORE\n"); p.stdin.flush()
             else:
                 p.stdin.write((msg.replace("\n"," ")+"\n").encode()); p.stdin.flush()
-            print(f"\n  {C.teal}◆ colibrì{C.r}")
+            print(f"\n  {C.red}◆ zunzún{C.r}")
             dec=codecs.getincrementaldecoder("utf-8")("replace")
             state={"first":True}
             def prefill_tick(path=errlog.name):
@@ -526,7 +527,7 @@ def main():
     common.add_argument("--cap", type=int, default=8); common.add_argument("--ngen", type=int, default=1024)  # rete di sicurezza: la fine vera la decidono gli stop token
     common.add_argument("--topp", type=float, default=0); common.add_argument("--topk", type=int, default=0)
     common.add_argument("--temp", type=float, default=None)  # temperatura token (0=greedy, default 1.0+nucleus .95)
-    ap=argparse.ArgumentParser(prog="coli", parents=[common], description="colibrì — run GLM-5.2 locally")
+    ap=argparse.ArgumentParser(prog="zun", parents=[common], description="zunzún — run GLM-5.2 locally")
     sub=ap.add_subparsers(dest="cmd")
     sub.add_parser("build", parents=[common]); sub.add_parser("info", parents=[common])
     pp=sub.add_parser("plan",parents=[common])
@@ -537,7 +538,7 @@ def main():
     sub.add_parser("chat", parents=[common])
     ps=sub.add_parser("serve", parents=[common])
     ps.add_argument("--host",default="127.0.0.1"); ps.add_argument("--port",type=int,default=8000)
-    ps.add_argument("--model-id",default=os.environ.get("COLI_MODEL_ID","glm-5.2-colibri"))
+    ps.add_argument("--model-id",default=os.environ.get("COLI_MODEL_ID","glm-5.2-zunzun"))
     ps.add_argument("--api-key",default=os.environ.get("COLI_API_KEY"))
     ps.add_argument("--cors-origin",action="append",default=None)
     ps.add_argument("--max-queue",type=int,default=int(os.environ.get("COLI_MAX_QUEUE","8")))
