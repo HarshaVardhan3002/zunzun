@@ -107,12 +107,18 @@ def need_model(model):
         sys.exit(f"{C.yel}engine is not built.{C.r} Run: coli build")
 
 def cuda_binary():
-    if not os.path.exists(GLM) or sys.platform != "linux": return False
-    try:
-        linked=subprocess.run(["ldd",GLM],capture_output=True,text=True,timeout=3)
-        return any("libcudart" in line and "not found" not in line
-                   for line in linked.stdout.splitlines())
-    except (OSError,subprocess.SubprocessError): return False
+    """True if the engine links a GPU runtime: NVIDIA (libcudart/cudart) or AMD
+    ROCm (amdhip64). Cross-platform via objdump -p (imported DLLs on Windows,
+    NEEDED entries on Linux), ldd fallback on POSIX."""
+    if not os.path.exists(GLM): return False
+    out=""
+    for cmd in (["objdump","-p",GLM],["ldd",GLM]):
+        try:
+            out=subprocess.run(cmd,capture_output=True,text=True,timeout=5).stdout.lower()
+            if out: break
+        except (OSError,subprocess.SubprocessError): continue
+    if "amdhip64" in out: return True
+    return "cudart" in out and "not found" not in out
 
 def resource_request(a, env):
     ctx=a.ctx or int(env.get("CTX",4096))

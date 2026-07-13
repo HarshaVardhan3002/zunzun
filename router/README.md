@@ -1,27 +1,36 @@
-# colibrì router
+# colibrì router — the routing OS layer (R5)
 
-OpenAI-compatible gateway. One endpoint, many local engines. Classifies each
-request, arbitrates the single-owner iGPU, lazy-spawns backends, proxies
-streaming, reaps idle engines. Stdlib only.
+One OpenAI-compatible endpoint in front of the colibrì engine. Classifies each
+request, dispatches to a backend *profile*, lazy-spawns it via `coli serve`,
+arbitrates the single-owner iGPU, proxies streaming, reaps idle backends.
+Stdlib only, no dependencies.
 
 ## Run
 ```
-python router/router.py          # :8080  (COLI_ROUTER_PORT to change)
+python router/router.py            # serves on :8080 (COLI_ROUTER_PORT to change)
 ```
 Point any OpenAI client at `http://127.0.0.1:8080/v1`.
 
+## As-built profiles (registry.yaml)
+- `colibri-gpu` — colibrì with the HIP iGPU tier (`COLI_HIP=1 CUDA_DENSE=1 CUDA_EXPERT_GB=N`), `device: igpu`.
+- `colibri-cpu` — pure CPU streaming, `device: cpu`.
+Both are the same model at different device tiers; the gateway picks per request.
+llama.cpp profiles are commented examples for when you add resident small models.
+
 ## Routing
-- `model: "<registry name>"` → forces that engine (e.g. `gptoss-120b`, `glm-5.2`).
-- `model: "auto"` → `default` engine, unless: prompt > 24k chars or `max_tokens` > 8k → largest engine; keywords like *prove / derive / reason step by step* → the streamed 744B (`xlarge`).
-- `GET /v1/models` lists engines. `GET /health` shows what's live.
+- `model: "colibri-gpu"` / `"colibri-cpu"` → that profile explicitly.
+- `model: "auto"` → `default` (colibri-gpu), unless the prompt is very long or
+  asks for depth (*prove/derive/reason*), which escalates to the largest profile.
+- `GET /v1/models` lists profiles. `GET /health` shows what's live.
 
-## Device arbiter
-`device: igpu` engines are single-owner: spawning one LRU-evicts any other igpu engine (they'd fight over the same GTT carveout). `device: cpu` engines (colibrì) coexist. Idle engines die after `idle_timeout_s`.
+## iGPU arbiter
+`device: igpu` profiles are single-owner: spawning one LRU-evicts any other igpu
+profile (they'd fight over the same VRAM carveout). `device: cpu` profiles
+coexist. Idle backends die after `idle_timeout_s`.
 
-## Config — registry.yaml
-Edit model paths. Each engine: `name, engine (llamacpp|colibri), class, model, device, vram_est_gb, port`, optional `env`. llama.cpp launch flags come from `../engines/llamacpp/presets.yaml` keyed by `class`.
-
-## Limits (MVP)
-- No true VRAM accounting yet; arbiter is one-igpu-at-a-time, not a byte budget. Phase 4 adds `vram_est_gb` summation + resource_plan APU awareness.
-- Classifier is heuristic. Phase 4 swaps in a feedback-driven policy (tok/s, TTFT, hit-rate).
-- YAML loader is a config subset (nested maps, list-of-maps, inline `{}`), not general YAML.
+## Status / caveat
+Gateway logic is verified end-to-end (classify, arbiter, spawn-cmd, streaming
+proxy). It becomes useful once `coli serve` has a runnable model (a model dir
+with `tokenizer.json`) — the tiny TF oracle has no tokenizer, and the 744B model
+is 500 GB. With one runnable model the value is CPU-vs-GPU-profile routing; with
+several it becomes true multi-model routing.

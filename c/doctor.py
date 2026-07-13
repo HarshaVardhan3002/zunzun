@@ -17,17 +17,29 @@ def _check(identifier, status, summary, **details):
 
 
 def cuda_linkage(engine_path):
-    """Return CUDA linkage state without loading the executable or CUDA runtime."""
-    if not Path(engine_path).is_file() or os.name != "posix":
+    """Return GPU-runtime linkage (NVIDIA libcudart/cudart or AMD amdhip64)
+    without loading the executable. Cross-platform via objdump -p, ldd fallback."""
+    if not Path(engine_path).is_file():
         return {"linked": False, "missing": False}
-    try:
-        result = subprocess.run(["ldd", str(engine_path)], capture_output=True, text=True,
-                                timeout=3, check=False)
-    except (OSError, subprocess.SubprocessError):
-        return {"linked": False, "missing": False}
-    lines = [line for line in result.stdout.splitlines() if "libcudart" in line]
-    return {"linked": any("not found" not in line for line in lines),
-            "missing": any("not found" in line for line in lines)}
+    out = ""
+    for cmd in (["objdump", "-p", str(engine_path)], ["ldd", str(engine_path)]):
+        try:
+            out = subprocess.run(cmd, capture_output=True, text=True, timeout=5,
+                                 check=False).stdout.lower()
+            if out:
+                break
+        except (OSError, subprocess.SubprocessError):
+            continue
+    lines = [ln for ln in out.splitlines() if "cudart" in ln or "amdhip64" in ln]
+    return {"linked": any("not found" not in ln for ln in lines),
+            "missing": any("not found" in ln for ln in lines)}
+
+
+def _engine_executable(engine):
+    """On Windows executability is by extension (POSIX chmod X-bit is ignored)."""
+    if os.name == "nt":
+        return engine.suffix.lower() in (".exe", ".bat", ".cmd", ".com")
+    return os.access(engine, os.X_OK)
 
 
 def run_doctor(model, ram_gb=0, context=4096, gpu_indices=None, vram_gb=0, *,
@@ -63,7 +75,7 @@ def run_doctor(model, ram_gb=0, context=4096, gpu_indices=None, vram_gb=0, *,
         checks.append(_check("storage.persistence", "skip", "persistence requires a model directory"))
 
     engine = Path(engine_path)
-    if engine.is_file() and os.access(engine, os.X_OK):
+    if engine.is_file() and _engine_executable(engine):
         checks.append(_check("engine.binary", "pass", "engine executable is ready", path=str(engine)))
     elif engine.is_file():
         checks.append(_check("engine.binary", "fail", "engine exists but is not executable", path=str(engine)))

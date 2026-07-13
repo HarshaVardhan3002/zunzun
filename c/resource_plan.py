@@ -76,6 +76,18 @@ def analyze_model(model):
 
 
 def memory_available():
+    if os.name == "nt":  # native Windows: no /proc/meminfo (mirrors compat_meminfo in compat.h)
+        import ctypes
+        class _MemStatusEx(ctypes.Structure):
+            _fields_ = [("dwLength", ctypes.c_uint32), ("dwMemoryLoad", ctypes.c_uint32),
+                        ("ullTotalPhys", ctypes.c_uint64), ("ullAvailPhys", ctypes.c_uint64),
+                        ("ullTotalPageFile", ctypes.c_uint64), ("ullAvailPageFile", ctypes.c_uint64),
+                        ("ullTotalVirtual", ctypes.c_uint64), ("ullAvailVirtual", ctypes.c_uint64),
+                        ("ullAvailExtendedVirtual", ctypes.c_uint64)]
+        status = _MemStatusEx(dwLength=ctypes.sizeof(_MemStatusEx))
+        if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
+            return int(status.ullAvailPhys)
+        return 0
     try:
         text = Path("/proc/meminfo").read_text()
         return int(re.search(r"MemAvailable:\s+(\d+)", text).group(1)) * 1024
@@ -83,7 +95,7 @@ def memory_available():
         return 0
 
 
-def discover_gpus():
+def _discover_nvidia():
     command = ["nvidia-smi", "--query-gpu=index,name,memory.total,memory.free",
                "--format=csv,noheader,nounits"]
     try:
@@ -103,6 +115,77 @@ def discover_gpus():
                         "total_bytes": total * 1024 * 1024,
                         "free_bytes": free * 1024 * 1024})
     return devices
+
+
+def _discover_amd():
+    """AMD ROCm GPUs via rocm-smi / amd-smi. Python-version-agnostic (subprocess
+    to a system tool), degrades to [] if no tool is present. On an APU the 'VRAM'
+    is the GTT carveout; if a tool omits it, total/free stay 0 and the planner
+    relies on the user's --vram budget."""
+    try:  # rocm-smi (JSON): keys look like {"card0": {"VRAM Total Memory (B)": ...}}
+        r = subprocess.run(["rocm-smi", "--showproductname", "--showmeminfo", "vram", "--json"],
+                           text=True, capture_output=True, timeout=6, check=True)
+        data = json.loads(r.stdout or "{}")
+        devices = []
+        for key, val in data.items():
+            if not isinstance(val, dict):
+                continue
+            digits = "".join(ch for ch in key if ch.isdigit())
+            idx = int(digits) if digits else len(devices)
+            name = (val.get("Card Series") or val.get("Card Model")
+                    or val.get("Card series") or val.get("Card model") or "AMD GPU")
+            total = int(val.get("VRAM Total Memory (B)", 0) or 0)
+            used = int(val.get("VRAM Total Used Memory (B)", 0) or 0)
+            devices.append({"index": idx, "name": name,
+                            "total_bytes": total, "free_bytes": max(total - used, 0)})
+        if devices:
+            return devices
+    except (OSError, subprocess.SubprocessError, ValueError, AttributeError):
+        pass
+    try:  # amd-smi (newer): presence + market name, memory best-effort
+        r = subprocess.run(["amd-smi", "list", "--json"], text=True,
+                           capture_output=True, timeout=6, check=True)
+        data = json.loads(r.stdout or "[]")
+        devices = []
+        for i, gpu in enumerate(data if isinstance(data, list) else []):
+            asic = gpu.get("asic") if isinstance(gpu, dict) else None
+            name = asic.get("market_name") if isinstance(asic, dict) else None
+            devices.append({"index": gpu.get("gpu", i) if isinstance(gpu, dict) else i,
+                            "name": name or "AMD GPU", "total_bytes": 0, "free_bytes": 0})
+        if devices:
+            return devices
+    except (OSError, subprocess.SubprocessError, ValueError, AttributeError):
+        pass
+    return []
+
+
+def _discover_torch():
+    """Fallback: PyTorch's runtime view (rocm or cuda build). This is what sees
+    the GPU on Windows ROCm boxes that ship no rocm-smi/amd-smi. Optional: if
+    torch is absent (or the wrong interpreter), degrades to []. Run `coli` with
+    the ROCm-torch interpreter for this to fire."""
+    try:
+        import torch
+        if not torch.cuda.is_available():
+            return []
+        devices = []
+        for i in range(torch.cuda.device_count()):
+            prop = torch.cuda.get_device_properties(i)
+            try:
+                free, total = torch.cuda.mem_get_info(i)
+            except Exception:
+                free, total = 0, int(getattr(prop, "total_memory", 0) or 0)
+            devices.append({"index": i, "name": getattr(prop, "name", "GPU"),
+                            "total_bytes": int(total), "free_bytes": int(free)})
+        return devices
+    except Exception:
+        return []
+
+
+def discover_gpus():
+    """NVIDIA (nvidia-smi), then AMD (rocm-smi/amd-smi), then PyTorch runtime.
+    First method that reports a device wins."""
+    return _discover_nvidia() or _discover_amd() or _discover_torch()
 
 
 def build_plan(model, ram_gb=0, context=4096, gpu_indices=None, vram_gb=0,

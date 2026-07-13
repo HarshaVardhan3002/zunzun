@@ -1,4 +1,5 @@
 import json
+import os
 import struct
 import subprocess
 import sys
@@ -47,7 +48,7 @@ class DoctorTest(unittest.TestCase):
             ("model.layers.1.mlp.experts.1.gate_proj.weight", 30),
             ("model.layers.1.mlp.experts.1.up_proj.weight", 30),
         ])
-        self.engine = self.root / "glm"
+        self.engine = self.root / ("glm.exe" if os.name == "nt" else "glm")
         self.engine.write_text("#!/bin/sh\nexit 0\n")
         self.engine.chmod(0o755)
 
@@ -99,6 +100,7 @@ class DoctorTest(unittest.TestCase):
         self.assertIsNone(report["plan"])
         self.assertEqual(exit_code(report), 1)
 
+    @unittest.skipUnless(os.name == "posix", "chmod execute bit is POSIX-only")
     def test_non_executable_engine_and_excessive_ram_budget_fail(self):
         self.engine.chmod(0o644)
         report = self.report(ram_gb=40)

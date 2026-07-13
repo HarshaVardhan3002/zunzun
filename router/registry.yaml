@@ -1,41 +1,41 @@
-# Engine catalog for the routing gateway. Edit model paths to your machine.
-# The arbiter treats the iGPU as a single-owner device: only one 'igpu' engine
-# runs at a time (LRU-evicted). 'cpu' engines (colibrì) coexist with it.
+# Engine catalog for the colibrì routing OS. The gateway classifies each request
+# and dispatches to a backend profile, lazy-spawning it via `coli serve`.
+# The iGPU is single-owner: only one 'igpu' profile runs at a time (LRU-evicted);
+# 'cpu' profiles coexist. Edit model paths to your machine.
+#
+# As-built (2026-07): colibrì is the engine (CPU streaming + optional HIP iGPU
+# tier). The two colibrì profiles below are the same model at different device
+# tiers; the gateway picks per request. llama.cpp entries are optional examples
+# (uncomment once engines/llamacpp is set up and you have resident GGUFs).
 
-gpu_vram_gb: 96          # GTT carveout the iGPU may use (set BIOS variable graphics mem >= this)
-idle_timeout_s: 300      # reap a backend after this many idle seconds
-default: qwen3-30b       # where 'model: auto' small/mid requests land
+gpu_vram_gb: 96          # GTT carveout the iGPU may use (BIOS variable graphics memory)
+idle_timeout_s: 300      # reap an idle backend after this many seconds
+default: colibri-gpu     # where 'model: auto' lands
 
 engines:
-  - name: qwen3-8b
-    engine: llamacpp
-    class: small
-    model: C:\models\qwen3-8b-q4.gguf
-    device: igpu
-    vram_est_gb: 8
-    port: 8101
-
-  - name: qwen3-30b
-    engine: llamacpp
+  - name: colibri-gpu
+    engine: colibri
     class: mid
-    model: C:\models\qwen3-30b-a3b-q4.gguf
+    model: C:\models\glm52_i4
     device: igpu
-    vram_est_gb: 20
-    port: 8102
+    vram_est_gb: 24
+    port: 8110
+    env: { COLI_HIP: "1", CUDA_DENSE: "1", CUDA_EXPERT_GB: "16", MTP: "1", TOPP: "0.7" }
 
-  - name: gptoss-120b
-    engine: llamacpp
-    class: large
-    model: C:\models\gpt-oss-120b-q4.gguf
-    device: igpu
-    vram_est_gb: 66
-    port: 8103
-
-  - name: glm-5.2
+  - name: colibri-cpu
     engine: colibri
     class: xlarge
     model: C:\models\glm52_i4
     device: cpu
     vram_est_gb: 0
-    port: 8104
-    env: { RAM_GB: "90", TOPP: "0.7", MTP: "1" }
+    port: 8111
+    env: { MTP: "1", TOPP: "0.7" }
+
+  # --- optional resident small models via llama.cpp (set up engines/llamacpp first) ---
+  # - name: qwen3-30b
+  #   engine: llamacpp
+  #   class: mid
+  #   model: C:\models\qwen3-30b-a3b-q4.gguf
+  #   device: igpu
+  #   vram_est_gb: 20
+  #   port: 8102
