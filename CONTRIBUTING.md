@@ -1,6 +1,19 @@
 # Contributing
 
-Keep changes focused and preserve Zunzun's dependency-free default CPU path.
+Contributions are actively wanted — this project is one person plus whoever shows up.
+The areas where help moves the needle most:
+
+- **Benchmarks** from AMD / unified-memory boxes (Strix Halo, Ryzen AI, Apple Silicon)
+  — real datapoints drive every optimization decision here;
+- **Backend ports** — the GPU seam (`c/backend.h`) is deliberately small; HIP exists,
+  Vulkan or Metal would widen the non-CUDA story;
+- **MoE models beyond GLM-5.2** — the runtime is meant to be model-agnostic
+  (see `ROADMAP.md`);
+- **I/O-path experiments** — direct reads, async pipelines, prefetch predictors.
+
+Ground rules: keep changes focused and preserve Zunzun's dependency-free default CPU
+path. Zunzun builds on [colibrì](https://github.com/JustVugg/colibri) (Apache 2.0);
+changes that make sense upstream are worth offering there too.
 
 ## Local checks
 

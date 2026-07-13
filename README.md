@@ -12,10 +12,17 @@ $ ./zun chat
   ◆ Hello! 😊 How can I help you today?
 ```
 
-> **Zunzun** is a fork of [colibrì](https://github.com/JustVugg/colibri) by JustVugg
-> (Apache 2.0 — see `NOTICE`), named after the *zunzuncito*, the Cuban bee hummingbird:
-> the smallest bird in the world. This fork focuses on AMD Strix Halo unified-memory
-> hardware, native Windows support, and I/O-path optimization.
+> **Zunzun** is built on [colibrì](https://github.com/JustVugg/colibri) by Vincenzo
+> (JustVugg) — the pure-C disk-streaming engine, the MLA/MoE forward, and most of what
+> makes this possible are his work (Apache 2.0, see `NOTICE`). Zunzun takes that
+> foundation in its own direction: a **general MoE runtime for non-CUDA hardware** —
+> unified-memory APUs (AMD Strix Halo class), CPU+iGPU co-execution over one zero-copy
+> expert cache, native Windows and Linux, vendor-neutral GPU backends (HIP today), and
+> model-agnostic beyond GLM-5.2. Named after the *zunzuncito*, the Cuban bee
+> hummingbird — the smallest bird in the world.
+>
+> **Collaboration is wanted, not just welcome**: benchmarks from AMD/unified-memory
+> boxes, backend ports, MoE models beyond GLM — open an issue and build with us.
 
 ## The idea
 
@@ -403,17 +410,34 @@ cd c
 
 It prints per-task accuracy (log-likelihood scoring, EleutherAI-harness style). Published full-precision GLM-5.2 scores on these tasks sit around 85–95%; if our int4 container lands within a few points, the quantization is validated — if it doesn't, we know to invest in mixed / grouped-scale quantization. **If you have the hardware to run this, please open an issue with the numbers** — it's the measurement the project is missing.
 
-## Lineage & supporting the project
+## Lineage, vision & collaboration
 
-Zunzun is a fork of [colibrì](https://github.com/JustVugg/colibri) by Vincenzo (JustVugg) —
-the engine design, the pure-C discipline, and most of what's described above are his work,
-and the project deserves your star. This fork exists to push a specific direction: AMD
-Strix Halo unified-memory hardware (Ryzen AI Max), native Windows, and the I/O path
-(direct reads, async expert pipelines, intent profiles).
+**Honest credit first**: Zunzun descends from [colibrì](https://github.com/JustVugg/colibri)
+by Vincenzo (JustVugg). The engine design, the pure-C discipline, the disk-streamed expert
+architecture, and most of what's described above are his work — the upstream project
+deserves your star before this one.
+
+**Where Zunzun is going** (and why it's a separate project, not a patch set):
+
+- **Non-CUDA native.** First-class support for hardware the mainstream stack ignores:
+  unified-memory APUs (Ryzen AI Max / Strix Halo class), ROCm/HIP iGPU tiers with
+  zero-copy GTT mapping, no NVIDIA dependency anywhere in the default path.
+- **A general MoE runtime, not a one-model engine.** The runtime thesis (see
+  `ROADMAP.md` / `ARCHITECTURE.md`): ModelProvider / ExpertCache / Scheduler / Backend
+  as model-agnostic subsystems — GLM today, DeepSeek/Qwen-class MoE next.
+- **The I/O path as the product.** Direct unbuffered reads, async expert pipelines,
+  learned + intent-profile pinning: on consumer hardware the disk is the GPU.
+- **Windows and Linux as equals.** The machine most people actually own is the target.
+
+**This is an open invitation.** The project is one person plus whoever shows up — exactly
+how upstream started. If any of the above is your itch:
 
 - ⭐ star the [upstream repo](https://github.com/JustVugg/colibri) and this one;
-- 🐛 open issues with benchmark numbers from your hardware;
-- 💬 reach out via GitHub issues to compare notes on unified-memory boxes.
+- 🐛 open issues with benchmark numbers from your hardware (AMD/unified-memory boxes
+  are the datapoints we need most);
+- 🔧 PRs welcome — backend ports (Vulkan?), MoE model support, kernel work, I/O
+  experiments; see `CONTRIBUTING.md`;
+- 💬 use GitHub issues/discussions to compare notes or propose direction.
 
 ## Repo layout
 
