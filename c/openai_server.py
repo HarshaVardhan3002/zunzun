@@ -342,7 +342,7 @@ class APIHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type")
         self.send_header("Access-Control-Expose-Headers",
-                         "x-request-id, x-colibri-queue-wait-ms, Retry-After")
+                         "x-request-id, x-zunzun-queue-wait-ms, Retry-After")
         self.send_header("Access-Control-Max-Age", "600")
         if "*" not in self.server.cors_origins:
             self.send_header("Vary", "Origin")
@@ -444,7 +444,7 @@ class APIHandler(BaseHTTPRequestHandler):
         created = int(time.time())
 
         with self.server.scheduler.admit(self.client_disconnected) as queue_wait:
-            queue_headers = {"x-colibri-queue-wait-ms": str(round(queue_wait * 1000))}
+            queue_headers = {"x-zunzun-queue-wait-ms": str(round(queue_wait * 1000))}
             if not stream:
                 output = []
                 stats = self.server.engine.generate(

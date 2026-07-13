@@ -216,7 +216,7 @@ class HTTPTest(unittest.TestCase):
             "max_tokens": 4, "cache_slot": 1,
         }) as response:
             body = json.load(response)
-            queue_wait = response.headers.get("x-colibri-queue-wait-ms")
+            queue_wait = response.headers.get("x-zunzun-queue-wait-ms")
         self.assertEqual(body["object"], "chat.completion")
         self.assertEqual(body["choices"][0]["message"]["content"], "Héllo")
         self.assertEqual(body["usage"], {"prompt_tokens": 7, "completion_tokens": 2, "total_tokens": 9})

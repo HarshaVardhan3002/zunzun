@@ -152,7 +152,7 @@ export async function streamChat(options: StreamChatOptions): Promise<StreamChat
     if (done) break
   }
 
-  const queueWaitHeader = response.headers.get("x-colibri-queue-wait-ms")
+  const queueWaitHeader = response.headers.get("x-zunzun-queue-wait-ms")
   const parsedQueueWait = queueWaitHeader === null ? null : Number(queueWaitHeader)
   return {
     finishReason,
