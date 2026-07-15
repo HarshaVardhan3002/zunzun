@@ -2756,12 +2756,34 @@ int main(int argc, char **argv){
     if(getenv("PIN")) pin_load(&m, getenv("PIN"), getenv("PIN_GB")?atof(getenv("PIN_GB")):10.0);
     /* CACHE CHE IMPARA: l'uso degli expert si accumula in <SNAP>/.coli_usage tra le sessioni;
      * all'avvio i piu' usati vengono auto-pinnati in RAM (meta' del budget expert: il pin
-     * conosce la TUA storia, la LRU si adatta alla sessione). AUTOPIN=0 disattiva. */
+     * conosce la TUA storia, la LRU si adatta alla sessione). AUTOPIN=0 disattiva.
+     * INTENT PROFILES: PROFILE=<nome> fonde <SNAP>/.coli_usage.<nome> con la storia globale
+     * (score = globale + W*profilo, PROFILE_W=4); le selezioni nuove nutrono ENTRAMBI i file.
+     * EN: PROFILE=<name> blends a per-domain history into the pin ranking; new selections
+     * feed both files. */
     { double ram_env = getenv("RAM_GB")?atof(getenv("RAM_GB")):0.0;
       int est_ctx = getenv("CTX")?atoi(getenv("CTX")):4096;   /* stesso default di run_serve */
       snprintf(g_usage_path,sizeof(g_usage_path),"%s/.coli_usage",snap);
-      int64_t hist = usage_load_into(&m,g_usage_path,m.gbase);
-      if(hist>0) fprintf(stderr,"[USAGE] expert history: %lld selections (%s)\n",(long long)hist,g_usage_path);
+      int64_t ghist = usage_load_into(&m,g_usage_path,m.gbase), phist = 0;
+      const char *prof = getenv("PROFILE");
+      if(prof && !*prof) prof=NULL;
+      if(prof && !prof_valid_name(prof)){
+          fprintf(stderr,"[PROFILE] invalid name '%s' ([A-Za-z0-9_-], max 32 chars); running without a profile\n",prof);
+          prof=NULL;
+      }
+      if(prof){
+          if(getenv("PROFILE_W")){ int w=atoi(getenv("PROFILE_W")); g_profile_w = w<1?1:(uint32_t)w; }
+          snprintf(g_profile_path,sizeof(g_profile_path),"%s/.coli_usage.%s",snap,prof);
+          phist = usage_load_into(&m,g_profile_path,m.pbase);
+          if(phist>0)
+              fprintf(stderr,"[PROFILE] %s: %lld selections (+ %lld global, weight %ux)\n",
+                      prof,(long long)phist,(long long)ghist,g_profile_w);
+          else
+              fprintf(stderr,"[PROFILE] %s: new profile (pin set seeded from %lld global selections)\n",
+                      prof,(long long)ghist);
+      }
+      int64_t hist = ghist + phist;
+      if(ghist>0) fprintf(stderr,"[USAGE] expert history: %lld selections (%s)\n",(long long)ghist,g_usage_path);
       int autopin = getenv("AUTOPIN")?atoi(getenv("AUTOPIN")):1;
       if(!getenv("PIN") && autopin && hist>=5000){
           /* quota pin proporzionale alla FIDUCIA nella storia: con pochi dati il pin
@@ -2769,7 +2791,21 @@ int main(int argc, char **argv){
            * qualche ora di chat) arriva a meta' del budget expert. */
           double conf = (double)hist/200000.0; if(conf>1) conf=1;
           double pin_gb = expert_avail(&m,ram_env,ebits,est_ctx)*0.5*conf/1e9;
-          if(pin_gb>=0.5) pin_load(&m, g_usage_path, pin_gb);
+          if(pin_gb>=0.5){
+              Cfg *c=&m.c; int cap_r=(c->n_layers+1)*c->n_experts;
+              PRec *rb=malloc((size_t)cap_r*sizeof(PRec));
+              int nb=prof_blend_recs(m.gbase,m.pbase,m.eusage,c->n_layers+1,c->n_experts,g_profile_w,rb);
+              int npin=pin_load_recs(&m,rb,nb,pin_gb,prof?prof:g_usage_path);
+              if(prof && npin>0){
+                  /* quanto il profilo cambia davvero il pin set rispetto al solo globale */
+                  PRec *rg=malloc((size_t)cap_r*sizeof(PRec));
+                  int ng=prof_blend_recs(m.gbase,NULL,NULL,c->n_layers+1,c->n_experts,1,rg);
+                  fprintf(stderr,"[PROFILE] pin set: %d%% differs from global-only\n",
+                          prof_topk_diff_pct(rb,nb,rg,ng,npin));
+                  free(rg);
+              }
+              free(rb);
+          }
       }
       /* SEMPRE: senza clamp la LRU cresce fino a cap*76 layer = decine di GB -> OOM-kill.
        * RAM_GB assente o <=0 = budget automatico da MemAvailable. */
