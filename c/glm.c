@@ -2439,26 +2439,20 @@ static void pin_wire(Model *m){
             "(no compression) in %.0fs\n", wired/1e9, now_s()-t0);
 }
 
-static void pin_load(Model *m, const char *statspath, double gb){
-    FILE *f=fopen(statspath,"r"); if(!f){ perror(statspath); return; }
-    typedef struct { int l,e; uint32_t c; } Rec;
-    Cfg *c=&m->c; int cap=(c->n_layers+1)*c->n_experts;
-    Rec *r=malloc((size_t)cap*sizeof(Rec)); int n=0;
-    int l,e; uint32_t cnt;
-    while(n<cap && fscanf(f,"%d %d %u",&l,&e,&cnt)==3){
-        int ok = l>=0 && e>=0 && e<c->n_experts &&
-                 ((l<c->n_layers && m->L[l].sparse) || (l==c->n_layers && m->has_mtp));
-        if(ok) r[n++]=(Rec){l,e,cnt};
-    }
-    fclose(f);
+/* meta' "ranking+load" del pin: prende record (layer,eid,count) GIA' validati,
+ * ordina per frequenza, carica i top entro il budget. NON libera r (il chiamante
+ * lo riusa per la diff del pin set). Ritorna npin. EN: ranking+loading half of the
+ * pin; does NOT free r; returns how many experts were pinned. */
+static int pin_load_recs(Model *m, PRec *r, int n, double gb, const char *src){
+    Cfg *c=&m->c;
     for(int a=0;a<n;a++){ int best=a;                       /* selection sort parziale, poi taglio */
         for(int b=a+1;b<n;b++) if(r[b].c>r[best].c) best=b;
-        Rec t=r[a]; r[a]=r[best]; r[best]=t;
+        PRec t=r[a]; r[a]=r[best]; r[best]=t;
         if(a>4095) break;                                    /* bastano i top ~4k */
     }
     int64_t eb=expert_bytes_probe(m,m->ebits);
     int npin=(int)(gb*1e9/eb); if(npin>n) npin=n; if(npin>4096) npin=4096;
-    if(npin<1){ free(r); return; }
+    if(npin<1) return 0;
     int *cnt_l=calloc(c->n_layers+1,sizeof(int));   /* +1: riga MTP */
     for(int a=0;a<npin;a++) cnt_l[r[a].l]++;
     for(int i=0;i<=c->n_layers;i++) if(cnt_l[i]) m->pin[i]=calloc(cnt_l[i],sizeof(ESlot));
@@ -2472,7 +2466,7 @@ static void pin_load(Model *m, const char *statspath, double gb){
     }
     m->resident_bytes += (int64_t)npin*eb;
     fprintf(stderr,"[PIN] hot store: %d experts in RAM (%.1f GB) loaded in %.0fs from %s\n",
-        npin, npin*eb/1e9, now_s()-t0, statspath);
+        npin, npin*eb/1e9, now_s()-t0, src);
 #ifdef COLI_GPU
     if(g_cuda_enabled && g_cuda_expert_gb>0){
         double remaining[COLI_GPU_MAX_DEVICES]={0}, placed_b[COLI_GPU_MAX_DEVICES]={0};
@@ -2527,7 +2521,24 @@ static void pin_load(Model *m, const char *statspath, double gb){
     }
 #endif
     pin_wire(m);                                   /* inchioda in RAM (no compressione) / wire in RAM (no compression) */
-    free(r); free(cnt_l);
+    free(cnt_l); return npin;
+}
+
+/* wrapper: legge un file STATS "layer eid count", filtra per validita' (sparse/MTP)
+ * e delega a pin_load_recs. EN: file-parsing front half of the pin. */
+static void pin_load(Model *m, const char *statspath, double gb){
+    FILE *f=fopen(statspath,"r"); if(!f){ perror(statspath); return; }
+    Cfg *c=&m->c; int cap=(c->n_layers+1)*c->n_experts;
+    PRec *r=malloc((size_t)cap*sizeof(PRec)); int n=0;
+    int l,e; uint32_t cnt;
+    while(n<cap && fscanf(f,"%d %d %u",&l,&e,&cnt)==3){
+        int ok = l>=0 && e>=0 && e<c->n_experts &&
+                 ((l<c->n_layers && m->L[l].sparse) || (l==c->n_layers && m->has_mtp));
+        if(ok) r[n++]=(PRec){l,e,cnt};
+    }
+    fclose(f);
+    pin_load_recs(m,r,n,gb,statspath);
+    free(r);
 }
 
 static double g_mem_avail_boot=0;   /* MemAvailable all'avvio, prima di caricare il modello */
