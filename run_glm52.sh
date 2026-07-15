@@ -12,5 +12,6 @@ if [ -z "$CPU" ]; then
   export COLI_HIP=1 CUDA_DENSE=1 CUDA_EXPERT_GB=24   # dense + hot experts on the 8060S (G1: mirror hot)
 fi
 export PIPE="${PIPE:-1}"   # overlap NVMe expert loads with matmul (+60% tok/s measured on this box; PIPE=0 reverts)
+# PROFILE=coding ./run_glm52.sh — per-domain expert history: pre-pins YOUR coding hot set (any [A-Za-z0-9_-] name)
 # --topp 0.7: adaptive expert top-p (~1.6x by cutting cold reads). MTP (int8) auto-detected.
 exec python zun chat --model "$MODEL" --topp 0.7 "${@:2}"
