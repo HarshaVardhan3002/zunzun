@@ -127,7 +127,8 @@ typedef struct {
     ESlot **ecache; int *ecn; int ecap;          /* LRU expert per-layer */
     ESlot ws[64];                                /* working set del layer corrente (load paralleli) */
     ESlot **pin; int *npin;                      /* HOT-STORE: expert pinnati in RAM (mai evicted) */
-    uint32_t **eusage;                           /* contatori persistenti (per STATS/PIN) */
+    uint32_t **eusage;                           /* SOLO delta di sessione (per STATS/PIN) / session deltas only */
+    uint32_t **gbase, **pbase;                   /* storia caricata: globale e profilo / loaded history: global, profile */
     uint32_t **eheat;                            /* calore recente per promotion/demotion live */
     /* DSA lightning indexer (attivo solo se i pesi out-idx-* sono presenti) */
     int has_dsa;
@@ -149,6 +150,7 @@ typedef struct {
 } Model;
 
 #include "cache.h"                                  /* R1: ExpertCache facade (needs ESlot + Model) */
+#include "profile.h"                                 /* intent profiles: blend/validation/top-k diff */
 
 static void usage_save(Model *m);        /* cache che impara: definita accanto a stats_dump */
 #ifdef COLI_GPU
@@ -760,6 +762,7 @@ static void model_init(Model *m, const char *snap, int cap, int ebits, int dbits
     m->eroute=calloc(NR,sizeof(int*)); m->enr=calloc(NR,sizeof(int));
     m->pin=calloc(NR,sizeof(ESlot*)); m->npin=calloc(NR,sizeof(int));
     m->eusage=calloc(NR,sizeof(uint32_t*)); m->eheat=calloc(NR,sizeof(uint32_t*));
+    m->gbase=calloc(NR,sizeof(uint32_t*));  m->pbase=calloc(NR,sizeof(uint32_t*));
     m->kv=calloc(1,sizeof(KVState));
     m->kv_start=m->kv->kv_start=calloc(NR,sizeof(int));
     for(int i=0;i<c->n_layers;i++){
@@ -2345,29 +2348,48 @@ static int64_t expert_bytes_probe(Model *m, int ebits){
 /* scarica su file l'istogramma d'uso degli expert: righe "layer eid count" (per PIN).
  * Include la riga MTP (layer n_layers). Scrittura atomica (tmp+rename): viene chiamata
  * anche a ogni turno di serve e il processo puo' morire in qualsiasi momento. */
-static void stats_dump_q(Model *m, const char *path, int quiet){
+/* scarica su file l'istogramma: righe "layer eid count" con count = b1 + b2 + delta
+ * di sessione (saturando a u32). b1/b2 possono essere NULL. Scrittura atomica.
+ * EN: dump histogram as baseline(s) + session deltas, saturating; atomic write. */
+static void stats_dump2(Model *m, const char *path, uint32_t **b1, uint32_t **b2, int quiet){
     char tmp[2100]; snprintf(tmp,sizeof(tmp),"%s.tmp",path);
     FILE *f=fopen(tmp,"w"); if(!f){ if(!quiet) perror(tmp); return; }
     Cfg *c=&m->c; int64_t tot=0, nz=0;
     for(int i=0;i<=c->n_layers;i++){ if(!m->eusage[i]) continue;
-        for(int e=0;e<c->n_experts;e++) if(m->eusage[i][e]){ fprintf(f,"%d %d %u\n",i,e,m->eusage[i][e]); tot+=m->eusage[i][e]; nz++; } }
+        for(int e=0;e<c->n_experts;e++){
+            uint32_t v = prof_blend(b1&&b1[i]?b1[i][e]:0, b2&&b2[i]?b2[i][e]:0,
+                                    m->eusage[i][e], 1);
+            if(v){ fprintf(f,"%d %d %u\n",i,e,v); tot+=v; nz++; }
+        } }
     fclose(f); rename(tmp,path);
     if(!quiet) fprintf(stderr,"[STATS] %lld selections across %lld distinct experts -> %s\n",(long long)tot,(long long)nz,path);
 }
-static void stats_dump(Model *m, const char *path){ stats_dump_q(m,path,0); }
+/* STATS diagnostico: la vista fusa completa (globale + profilo + sessione) */
+static void stats_dump(Model *m, const char *path){ stats_dump2(m,path,m->gbase,m->pbase,0); }
 
 /* CACHE CHE IMPARA: istogramma d'uso PERSISTENTE in <SNAP>/.coli_usage.
- * Caricato all'avvio (i contatori ripartono dalla storia), salvato a ogni turno:
+ * Caricato all'avvio in gbase (le sessioni nuove sono delta), salvato a ogni turno:
  * piu' usi zunzun, meglio l'auto-pin conosce i TUOI expert caldi. */
-static char g_usage_path[2100]="";
-static int64_t usage_load(Model *m, const char *path){
+static char g_usage_path[2100]="", g_profile_path[2100]="";
+static uint32_t g_profile_w=4;                   /* peso del profilo nel blend / profile weight */
+/* carica una storia in una matrice baseline (righe allocate al bisogno, solo dove
+ * esiste la riga eusage). EN: load one history file into a baseline array. */
+static int64_t usage_load_into(Model *m, const char *path, uint32_t **dst){
     FILE *f=fopen(path,"r"); if(!f) return 0;
     Cfg *c=&m->c; int l,e; uint32_t cnt; int64_t tot=0;
     while(fscanf(f,"%d %d %u",&l,&e,&cnt)==3)
-        if(l>=0&&l<=c->n_layers&&e>=0&&e<c->n_experts&&m->eusage[l]){ m->eusage[l][e]+=cnt; tot+=cnt; }
+        if(l>=0&&l<=c->n_layers&&e>=0&&e<c->n_experts&&m->eusage[l]){
+            if(!dst[l]) dst[l]=calloc(c->n_experts,sizeof(uint32_t));
+            dst[l][e]+=cnt; tot+=cnt;
+        }
     fclose(f); return tot;
 }
-static void usage_save(Model *m){ if(g_usage_path[0]) stats_dump_q(m,g_usage_path,1); }
+/* salva a ogni turno: globale = gbase+delta, profilo = pbase+delta. Idempotente:
+ * le baseline non si ri-sommano mai a se stesse. EN: per-turn dual save, idempotent. */
+static void usage_save(Model *m){
+    if(g_usage_path[0])   stats_dump2(m, g_usage_path,   m->gbase, NULL, 1);
+    if(g_profile_path[0]) stats_dump2(m, g_profile_path, m->pbase, NULL, 1);
+}
 
 /* HOT-STORE ("il redis dello zunzun"): carica in RAM, UNA VOLTA e per sempre, i top expert
  * per frequenza d'uso misurata (file STATS di un run precedente), entro un budget in GB.
@@ -2727,7 +2749,7 @@ int main(int argc, char **argv){
     { double ram_env = getenv("RAM_GB")?atof(getenv("RAM_GB")):0.0;
       int est_ctx = getenv("CTX")?atoi(getenv("CTX")):4096;   /* stesso default di run_serve */
       snprintf(g_usage_path,sizeof(g_usage_path),"%s/.coli_usage",snap);
-      int64_t hist = usage_load(&m,g_usage_path);
+      int64_t hist = usage_load_into(&m,g_usage_path,m.gbase);
       if(hist>0) fprintf(stderr,"[USAGE] expert history: %lld selections (%s)\n",(long long)hist,g_usage_path);
       int autopin = getenv("AUTOPIN")?atoi(getenv("AUTOPIN")):1;
       if(!getenv("PIN") && autopin && hist>=5000){
