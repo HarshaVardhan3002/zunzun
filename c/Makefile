@@ -53,7 +53,7 @@ CUDA_ARCH ?= native
 NVCCFLAGS ?= -O3 -std=c++17 -arch=$(CUDA_ARCH) -Xcompiler=-Wall,-Wextra
 PYTHON    ?= python3
 CUDA_OBJ  =
-TEST_BINS = tests/test_json$(EXE) tests/test_st$(EXE) tests/test_tier$(EXE) tests/test_grammar$(EXE) tests/test_cache$(EXE) tests/test_sched$(EXE) tests/test_profile$(EXE)
+TEST_BINS = tests/test_json$(EXE) tests/test_st$(EXE) tests/test_tier$(EXE) tests/test_grammar$(EXE) tests/test_cache$(EXE) tests/test_sched$(EXE) tests/test_profile$(EXE) tests/test_sample$(EXE)
 ifeq ($(CUDA),1)
 ifeq ($(UNAME_S),Darwin)
 $(error CUDA=1 is supported only on Linux)
@@ -132,6 +132,9 @@ tests/test_sched$(EXE): tests/test_sched.c scheduler.h
 	$(CC) $(CFLAGS) -I. $< -o $@ $(LDFLAGS)
 
 tests/test_profile$(EXE): tests/test_profile.c profile.h
+	$(CC) $(CFLAGS) -I. $< -o $@ $(LDFLAGS)
+
+tests/test_sample$(EXE): tests/test_sample.c sample.h
 	$(CC) $(CFLAGS) -I. $< -o $@ $(LDFLAGS)
 
 test-c: $(TEST_BINS)
