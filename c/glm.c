@@ -1512,12 +1512,30 @@ static void layer_forward(Model *m, Layer *l, int li, float *x, int S, int pos_b
 static void layers_forward(Model *m, float *x, int S, int pos_base){
     Cfg *c=&m->c; int D=c->hidden;
     float *nrm=falloc((int64_t)S*D), *tmp=falloc((int64_t)S*D);
+    /* MTP_DEBUG>=3: traccia numerica per il bisect di fase 0 — checksum del prefisso KV
+     * per layer all'ingresso del forward + checksum per riga dopo ogni layer. Confrontando
+     * run draft>0 vs draft=0 si localizza il PRIMO punto in cui i bit divergono. */
+    int dbg3 = getenv("MTP_DEBUG") && atoi(getenv("MTP_DEBUG"))>=3;
+    if(dbg3 && pos_base>0){
+        for(int i=0;i<c->n_layers;i++){ double a=0,r=0;
+            const float *L=m->Lc[i], *R=m->Rc[i];
+            for(int64_t j=0;j<(int64_t)pos_base*c->kv_lora;j++) a+=L[j];
+            for(int64_t j=0;j<(int64_t)pos_base*c->qk_rope;j++) r+=R[j];
+            fprintf(stderr,"[kvsum] layer=%d pos<%d Lsum=%.9e Rsum=%.9e\n", i, pos_base, a, r);
+        }
+    }
+    if(dbg3) for(int s=0;s<S;s++){ double a=0; const float *xs=x+(int64_t)s*D;
+        for(int d=0;d<D;d++) a+=xs[d];
+        fprintf(stderr,"[ltrace] pos=%d layer=embed sum=%.9e\n", pos_base+s, a); }
     for(int i=0;i<c->n_layers;i++){
         /* progresso su stderr per i batch grossi (prefill): il primo byte di risposta
          * puo' arrivare dopo MINUTI di streaming — al buio sembra un blocco. */
         if(S>=8 && (i%4==0 || i==c->n_layers-1))
             fprintf(stderr,"[prefill] layer %d/%d · %d token\n", i+1, c->n_layers, S);
         layer_forward(m,&m->L[i],i,x,S,pos_base,nrm,tmp);
+        if(dbg3) for(int s=0;s<S;s++){ double a=0,b=0; const float *xs=x+(int64_t)s*D;
+            for(int d=0;d<D;d++){ a+=xs[d]; b+=fabs(xs[d]); }
+            fprintf(stderr,"[ltrace] pos=%d layer=%d sum=%.9e asum=%.9e\n", pos_base+s, i, a, b); }
     }
     free(nrm); free(tmp);
 }
@@ -1792,6 +1810,17 @@ static int spec_decode(Model *m, int *all, int kv, int n_new, int eos, float *lo
         int k=0;                                        /* verifica: accetta finche' coincide */
         if(g>0 && getenv("MTP_DEBUG")){ int veri=argmax_v(lo,V);
             fprintf(stderr,"[mtpdbg] draft0=%d verified=%d %s\n", draft[0], veri, draft[0]==veri?"HIT":"miss"); }
+        if(getenv("MTP_DEBUG")){        /* logit-gap probe (Phase 0): top-2 per riga di verifica.
+             * pos = posizione del token in input alla riga; i suoi logit scelgono il token pos+1.
+             * Confrontando run draft>0 vs draft=0 per pos: gap piccolo al flip = numerica (H2),
+             * riga/posizione sbagliata o gap grande = bookkeeping (H1). */
+            for(int s=0;s<S;s++){ const float *ls=lo+(int64_t)s*V;
+                int b1=ls[1]>ls[0]?1:0, b2=1-b1;
+                for(int i=2;i<V;i++){ if(ls[i]>ls[b1]){b2=b1;b1=i;} else if(ls[i]>ls[b2]) b2=i; }
+                fprintf(stderr,"[gap] pos=%d row=%d/%d in_tok=%d top1=%d %.6f top2=%d %.6f gap=%.6f\n",
+                    kv+s, s, S, batch[s], b1, (double)ls[b1], b2, (double)ls[b2], (double)(ls[b1]-ls[b2]));
+            }
+        }
         while(k<g && emitted<n_new){
             int accept;
             if(g_temp<=0) accept = (argmax_v(lo+(int64_t)k*V,V)==draft[k]);

@@ -1,0 +1,10 @@
+== GLM C engine (glm_moe_dsa), cache=64 experts/layer | experts@8-bit dense@8-bit | idot: avx512-vnni ==
+loaded in 6.30s | resident dense: 9912.75 MB | layers=78 experts=256 | MTP ACTIVE (draft=3)
+prompt: 43 tokens | generating up to 4 (EOS stop=154820) | n-gram draft=3
+[gMASK]<sop><|user|>Write a Python function that finds the shortest path in a weighted graph using Dijkstra with heapq, then a small JS class Particle with update() and a scoring function. Output only code.<|assistant|><think></think>```python
+import
+---
+4 tokens in 68.63s (0.06 tok/s) | expert hit rate 25.0% | RSS 97.72 GB
+experts loaded/token: 7146.0 (per-layer 95.28 across 75; baseline topk=8) | TOPK=0 TOPP=0.00
+speculation: 4.00 tokens/forward (1 forwards per 4 tokens) | MTP acceptance 100% (3/3)
+PROFILE: expert-disk 55.411s | expert-matmul 8.442s | attention 2.945s (including kvb 0.146s) | lm_head 0.017s | other 1.816s

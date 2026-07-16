@@ -1,0 +1,241 @@
+[MTP] active: native speculative decoding (draft=3)
+[USAGE] expert history: 3193768 selections (C:/Users/Von/Downloads/model/.coli_usage)
+[PIN] hot store: 2315 experts in RAM (43.8 GB) loaded in 13s from C:/Users/Von/Downloads/model/.coli_usage
+[RAM_GB=104.1 auto] resident 54.2 GB + reserve 6.1 GB (ws 1.2, KV 1x4096 0.7, kvb 0.5), experts 18.9 MB x 77 layers -> cap lowered 64->30 (projected peak 104.0 GB)
+[stop] 3 stop tokens: 154820 154827 154829
+[prefill] layer 1/78 · 43 token
+[prefill] layer 5/78 · 43 token
+[prefill] layer 9/78 · 43 token
+[prefill] layer 13/78 · 43 token
+[prefill] layer 17/78 · 43 token
+[prefill] layer 21/78 · 43 token
+[prefill] layer 25/78 · 43 token
+[prefill] layer 29/78 · 43 token
+[prefill] layer 33/78 · 43 token
+[prefill] layer 37/78 · 43 token
+[prefill] layer 41/78 · 43 token
+[prefill] layer 45/78 · 43 token
+[prefill] layer 49/78 · 43 token
+[prefill] layer 53/78 · 43 token
+[prefill] layer 57/78 · 43 token
+[prefill] layer 61/78 · 43 token
+[prefill] layer 65/78 · 43 token
+[prefill] layer 69/78 · 43 token
+[prefill] layer 73/78 · 43 token
+[prefill] layer 77/78 · 43 token
+[prefill] layer 78/78 · 43 token
+[mtpdbg] draft0=12663 verified=12663 HIT
+[gap] pos=43 row=0/4 in_tok=73022 top1=12663 28.167809 top2=14064 19.315207 gap=8.852602
+[gap] pos=44 row=1/4 in_tok=12663 top1=198 29.554983 top2=271 21.201048 gap=8.353935
+[gap] pos=45 row=2/4 in_tok=198 top1=474 27.175085 top2=2 26.591431 gap=0.583654
+[gap] pos=46 row=3/4 in_tok=262 top1=1159 20.624510 top2=3190 18.672541 gap=1.951969
+[mtpdbg] draft0=87790 verified=87790 HIT
+[gap] pos=46 row=0/4 in_tok=474 top1=87790 25.678730 top2=5708 18.812597 gap=6.866133
+[gap] pos=47 row=1/4 in_tok=87790 top1=271 27.446547 top2=198 26.507826 gap=0.938721
+[gap] pos=48 row=2/4 in_tok=198 top1=474 26.862951 top2=1499 26.204039 gap=0.658913
+[gap] pos=49 row=3/4 in_tok=262 top1=1159 20.730888 top2=671 20.075850 gap=0.655039
+[mtpdbg] draft0=750 verified=750 HIT
+[gap] pos=48 row=0/4 in_tok=271 top1=750 28.330030 top2=2 24.600483 gap=3.729548
+[gap] pos=49 row=1/4 in_tok=750 top1=1853 22.436487 top2=38932 22.117483 gap=0.319004
+[gap] pos=50 row=2/4 in_tok=1477 top1=16656 27.672113 top2=2638 21.280733 gap=6.391380
+[gap] pos=51 row=3/4 in_tok=15862 top1=19200 24.634087 top2=410 21.051798 gap=3.582289
+[mtpdbg] draft0=41572 verified=41572 HIT
+[gap] pos=50 row=0/4 in_tok=1853 top1=41572 30.938055 top2=2519 20.397379 gap=10.540676
+[gap] pos=51 row=1/4 in_tok=41572 top1=13334 34.109455 top2=58382 23.955421 gap=10.154034
+[gap] pos=52 row=2/4 in_tok=13334 top1=16656 25.458651 top2=24242 21.170580 gap=4.288071
+[gap] pos=53 row=3/4 in_tok=262 top1=320 17.241388 top2=671 15.877255 gap=1.364133
+[mtpdbg] draft0=477 verified=477 HIT
+[gap] pos=53 row=0/4 in_tok=16656 top1=477 38.215218 top2=288 23.900009 gap=14.315208
+[gap] pos=54 row=1/4 in_tok=477 top1=2638 31.268755 top2=24084 21.942642 gap=9.326113
+[gap] pos=55 row=2/4 in_tok=2638 top1=24242 24.376736 top2=70978 21.314665 gap=3.062071
+[gap] pos=56 row=3/4 in_tok=320 top1=4439 22.554760 top2=24663 18.671789 gap=3.882971
+[mtpdbg] draft0=11 verified=11 HIT
+[gap] pos=56 row=0/4 in_tok=24242 top1=11 25.043089 top2=25 20.505806 gap=4.537283
+[gap] pos=57 row=1/4 in_tok=11 top1=1191 26.462341 top2=2530 20.977335 gap=5.485006
+[gap] pos=58 row=2/4 in_tok=1191 top1=5084 25.760450 top2=11 23.917158 gap=1.843292
+[gap] pos=59 row=3/4 in_tok=11 top1=835 24.644279 top2=2169 22.364483 gap=2.279797
+
+[t=16  RSS 94.93 GB  hit 41%  0.14 tok/s  2.50 tok/fw]
+[mtpdbg] draft0=11 verified=11 HIT
+[gap] pos=59 row=0/4 in_tok=5084 top1=11 26.361124 top2=982 24.641350 gap=1.719774
+[gap] pos=60 row=1/4 in_tok=11 top1=835 26.811962 top2=2169 24.158304 gap=2.653658
+[gap] pos=61 row=2/4 in_tok=1429 top1=14884 16.363945 top2=51604 15.543996 gap=0.819949
+[gap] pos=62 row=3/4 in_tok=477 top1=5084 18.705534 top2=982 18.194979 gap=0.510555
+[mtpdbg] draft0=5084 verified=5084 HIT
+[gap] pos=61 row=0/4 in_tok=835 top1=5084 32.119648 top2=14884 21.826618 gap=10.293030
+[gap] pos=62 row=1/4 in_tok=5084 top1=982 27.416040 top2=5856 26.311237 gap=1.104803
+[gap] pos=63 row=2/4 in_tok=11 top1=7798 19.744736 top2=4680 19.499973 gap=0.244762
+[gap] pos=64 row=3/4 in_tok=518 top1=499 17.271189 top2=9657 14.189825 gap=3.081364
+[mtpdbg] draft0=262 verified=262 HIT
+[gap] pos=63 row=0/4 in_tok=982 top1=262 28.890587 top2=220 22.924088 gap=5.966499
+[gap] pos=64 row=1/4 in_tok=262 top1=3190 26.361242 top2=671 22.274023 gap=4.087219
+[gap] pos=65 row=2/4 in_tok=4210 top1=37 20.313139 top2=50298 16.835787 gap=3.477352
+[gap] pos=66 row=3/4 in_tok=257 top1=3190 18.066685 top2=4771 17.835730 gap=0.230955
+[mtpdbg] draft0=262 verified=262 HIT
+[gap] pos=65 row=0/4 in_tok=3190 top1=262 29.950283 top2=286 21.874849 gap=8.075434
+[gap] pos=66 row=1/4 in_tok=262 top1=50298 22.467688 top2=7379 18.722513 gap=3.745174
+[gap] pos=67 row=2/4 in_tok=5184 top1=279 17.973948 top2=510 17.671896 gap=0.302052
+[gap] pos=68 row=3/4 in_tok=279 top1=38932 23.821541 top2=8027 18.479982 gap=5.341558
+[mtpdbg] draft0=279 verified=279 HIT
+[gap] pos=67 row=0/4 in_tok=50298 top1=279 29.218863 top2=323 19.421637 gap=9.797226
+[gap] pos=68 row=1/4 in_tok=279 top1=38932 31.461742 top2=2805 22.748775 gap=8.712967
+[gap] pos=69 row=2/4 in_tok=38932 top1=1815 28.943811 top2=12710 17.685875 gap=11.257936
+[gap] pos=70 row=3/4 in_tok=320 top1=79154 23.996740 top2=89156 23.058666 gap=0.938074
+[mtpdbg] draft0=304 verified=304 HIT
+[gap] pos=70 row=0/4 in_tok=1815 top1=304 25.788183 top2=1948 23.865931 gap=1.922253
+[gap] pos=71 row=1/4 in_tok=304 top1=264 29.690247 top2=458 23.938540 gap=5.751707
+[gap] pos=72 row=2/4 in_tok=264 top1=36633 27.109648 top2=2477 21.952288 gap=5.157360
+[gap] pos=73 row=3/4 in_tok=1948 top1=1378 23.178028 top2=1191 21.699623 gap=1.478405
+[mtpdbg] draft0=4771 verified=4771 HIT
+[gap] pos=73 row=0/4 in_tok=36633 top1=4771 28.065340 top2=11 23.782368 gap=4.282972
+[gap] pos=74 row=1/4 in_tok=4771 top1=1667 24.275944 top2=504 23.961868 gap=0.314075
+[gap] pos=75 row=2/4 in_tok=15528 top1=1613 20.977554 top2=4771 19.276728 gap=1.700827
+[gap] pos=76 row=3/4 in_tok=320 top1=269 23.838203 top2=437 19.129496 gap=4.708708
+
+[t=32  RSS 95.65 GB  hit 49%  0.18 tok/s  2.38 tok/fw]
+[mtpdbg] draft0=422 verified=422 HIT
+[gap] pos=75 row=0/4 in_tok=1667 top1=422 26.481234 top2=13020 18.007347 gap=8.473886
+[gap] pos=76 row=1/4 in_tok=422 top1=86455 28.462416 top2=18717 20.722630 gap=7.739786
+[gap] pos=77 row=2/4 in_tok=86455 top1=594 25.757698 top2=448 17.314005 gap=8.443693
+[gap] pos=78 row=3/4 in_tok=624 top1=1066 25.598270 top2=262 25.026711 gap=0.571560
+[mtpdbg] draft0=12105 verified=12105 HIT
+[gap] pos=78 row=0/4 in_tok=594 top1=12105 25.813698 top2=40103 18.341028 gap=7.472670
+[gap] pos=79 row=1/4 in_tok=12105 top1=624 25.914412 top2=382 23.371918 gap=2.542494
+[gap] pos=80 row=2/4 in_tok=624 top1=1066 28.384897 top2=262 26.307673 gap=2.077225
+[gap] pos=81 row=3/4 in_tok=262 top1=97279 21.071810 top2=1374 19.635767 gap=1.436043
+[mtpdbg] draft0=262 verified=262 HIT
+[gap] pos=81 row=0/4 in_tok=1066 top1=262 27.974361 top2=4439 17.370874 gap=10.603487
+[gap] pos=82 row=1/4 in_tok=262 top1=17668 23.887806 top2=549 23.387688 gap=0.500118
+[gap] pos=83 row=2/4 in_tok=549 top1=903 30.440104 top2=4439 19.463875 gap=10.976229
+[gap] pos=84 row=3/4 in_tok=903 top1=4771 29.213589 top2=6451 23.143169 gap=6.070419
+[mtpdbg] draft0=510 verified=510 HIT
+[gap] pos=83 row=0/4 in_tok=17668 top1=510 26.474627 top2=25 16.308006 gap=10.166620
+[gap] pos=84 row=1/4 in_tok=510 top1=286 30.361895 top2=414 24.063608 gap=6.298286
+[gap] pos=85 row=2/4 in_tok=286 top1=4771 25.124556 top2=362 16.289309 gap=8.835247
+[gap] pos=86 row=3/4 in_tok=481 top1=4771 23.439508 top2=1191 17.429523 gap=6.009985
+[mtpdbg] draft0=320 verified=320 HIT
+[gap] pos=86 row=0/4 in_tok=4771 top1=320 27.941057 top2=25 24.742889 gap=3.198168
+[gap] pos=87 row=1/4 in_tok=320 top1=8476 31.736151 top2=1607 20.817844 gap=10.918306
+[gap] pos=88 row=2/4 in_tok=38 top1=8476 15.568804 top2=1648 15.121652 gap=0.447152
+[gap] pos=89 row=3/4 in_tok=4835 top1=1648 16.478172 top2=6451 13.593018 gap=2.885155
+[mtpdbg] draft0=1648 verified=1648 HIT
+[gap] pos=88 row=0/4 in_tok=8476 top1=1648 25.963184 top2=17282 20.097588 gap=5.865597
+[gap] pos=89 row=1/4 in_tok=1648 top1=1527 23.866558 top2=62475 23.840719 gap=0.025839
+[gap] pos=90 row=2/4 in_tok=362 top1=10992 28.149811 top2=6451 21.682964 gap=6.466846
+[gap] pos=91 row=3/4 in_tok=220 top1=17 20.451086 top2=3916 17.662043 gap=2.789043
+
+[t=48  RSS 96.33 GB  hit 52%  0.22 tok/s  2.47 tok/fw]
+[mtpdbg] draft0=73275 verified=73275 HIT
+[gap] pos=90 row=0/4 in_tok=1527 top1=73275 29.546413 top2=10992 20.349751 gap=9.196663
+[gap] pos=91 row=1/4 in_tok=73275 top1=1140 31.382652 top2=10992 28.525608 gap=2.857044
+[gap] pos=92 row=2/4 in_tok=1140 top1=14055 25.258003 top2=13035 22.961843 gap=2.296160
+[gap] pos=93 row=3/4 in_tok=13 top1=24065 23.093493 top2=715 22.009800 gap=1.083693
+[mtpdbg] draft0=279 verified=279 HIT
+[gap] pos=93 row=0/4 in_tok=14055 top1=279 29.153519 top2=264 21.582460 gap=7.571058
+[gap] pos=94 row=1/4 in_tok=279 top1=4771 26.205647 top2=36633 25.617603 gap=0.588043
+[gap] pos=95 row=2/4 in_tok=4771 top1=624 25.743013 top2=13 25.699999 gap=0.043015
+[gap] pos=96 row=3/4 in_tok=320 top1=68 20.636164 top2=79154 18.054058 gap=2.582106
+[mtpdbg] draft0=310 verified=2549 miss
+[gap] pos=96 row=0/4 in_tok=624 top1=2549 31.431019 top2=310 28.273151 gap=3.157867
+[gap] pos=97 row=1/4 in_tok=310 top1=13374 22.950188 top2=30895 22.819860 gap=0.130327
+[gap] pos=98 row=2/4 in_tok=320 top1=68 20.826824 top2=4061 17.976515 gap=2.850309
+[gap] pos=99 row=3/4 in_tok=68 top1=1302 23.972389 top2=8 14.233768 gap=9.738622
+[mtpdbg] draft0=13374 verified=24065 miss
+[gap] pos=97 row=0/4 in_tok=2549 top1=24065 23.466610 top2=15030 23.187901 gap=0.278709
+[gap] pos=98 row=1/4 in_tok=13374 top1=3561 23.601082 top2=25 22.209608 gap=1.391474
+[gap] pos=99 row=2/4 in_tok=25 top1=5360 24.864614 top2=341 23.648369 gap=1.216246
+[gap] pos=100 row=3/4 in_tok=220 top1=5360 21.542459 top2=4771 20.292734 gap=1.249725
+[mtpdbg] draft0=525 verified=525 HIT
+[gap] pos=98 row=0/4 in_tok=24065 top1=525 28.009602 top2=320 22.684801 gap=5.324800
+[gap] pos=99 row=1/4 in_tok=525 top1=2436 27.661676 top2=7798 25.576817 gap=2.084860
+[gap] pos=100 row=2/4 in_tok=220 top1=15 15.599200 top2=7798 15.461692 gap=0.137508
+[gap] pos=101 row=3/4 in_tok=257 top1=2436 19.314396 top2=7798 18.473940 gap=0.840456
+[mtpdbg] draft0=9066 verified=46925 miss
+[gap] pos=100 row=0/4 in_tok=2436 top1=46925 25.675999 top2=5036 22.272236 gap=3.403763
+[gap] pos=101 row=1/4 in_tok=9066 top1=11 24.359735 top2=30988 23.072315 gap=1.287420
+[gap] pos=102 row=2/4 in_tok=11 top1=2750 26.271406 top2=323 21.529446 gap=4.741961
+[gap] pos=103 row=3/4 in_tok=323 top1=2750 26.348310 top2=279 21.030512 gap=5.317799
+[mtpdbg] draft0=11 verified=11 HIT
+[gap] pos=101 row=0/4 in_tok=46925 top1=11 28.113186 top2=320 27.472248 gap=0.640938
+[gap] pos=102 row=1/4 in_tok=11 top1=2750 26.491896 top2=323 23.658634 gap=2.833261
+[gap] pos=103 row=2/4 in_tok=2750 top1=525 28.275818 top2=374 18.612335 gap=9.663483
+[gap] pos=104 row=3/4 in_tok=525 top1=11464 24.157127 top2=5367 22.492449 gap=1.664679
+[mtpdbg] draft0=315 verified=315 HIT
+[gap] pos=105 row=0/4 in_tok=11464 top1=315 26.758835 top2=14 20.527111 gap=6.231724
+[gap] pos=106 row=1/4 in_tok=315 top1=44957 24.190660 top2=320 22.475208 gap=1.715452
+[gap] pos=107 row=2/4 in_tok=198 top1=2549 28.998785 top2=286 17.544998 gap=11.453787
+[gap] pos=108 row=3/4 in_tok=310 top1=44957 20.009817 top2=320 17.573868 gap=2.435949
+
+[t=64  RSS 96.90 GB  hit 55%  0.23 tok/s  2.33 tok/fw]
+[mtpdbg] draft0=320 verified=320 HIT
+[gap] pos=107 row=0/4 in_tok=44957 top1=320 23.780405 top2=25 22.997988 gap=0.782417
+[gap] pos=108 row=1/4 in_tok=320 top1=36284 28.236490 top2=5657 23.854853 gap=4.381638
+[gap] pos=109 row=2/4 in_tok=36284 top1=11 27.596073 top2=5084 24.487335 gap=3.108738
+[gap] pos=110 row=3/4 in_tok=5694 top1=11 23.641541 top2=5084 23.446312 gap=0.195229
+[mtpdbg] draft0=4680 verified=4680 HIT
+[gap] pos=110 row=0/4 in_tok=11 top1=4680 24.963436 top2=2783 20.591558 gap=4.371878
+[gap] pos=111 row=1/4 in_tok=4680 top1=4292 25.511612 top2=340 20.348707 gap=5.162905
+[gap] pos=112 row=2/4 in_tok=320 top1=4082 21.269430 top2=396 21.117298 gap=0.152132
+[gap] pos=113 row=3/4 in_tok=99457 top1=39252 17.330263 top2=98503 17.305849 gap=0.024414
+[mtpdbg] draft0=286 verified=286 HIT
+[gap] pos=112 row=0/4 in_tok=4292 top1=286 28.151226 top2=2549 27.040102 gap=1.111124
+[gap] pos=113 row=1/4 in_tok=286 top1=1191 27.041424 top2=4771 19.162655 gap=7.878769
+[gap] pos=114 row=2/4 in_tok=4771 top1=284 21.305079 top2=29781 18.713160 gap=2.591919
+[gap] pos=115 row=3/4 in_tok=25 top1=341 25.398720 top2=314 21.312050 gap=4.086670
+[mtpdbg] draft0=320 verified=5084 miss
+[gap] pos=114 row=0/4 in_tok=1191 top1=5084 32.930359 top2=320 22.051477 gap=10.878881
+[gap] pos=115 row=1/4 in_tok=320 top1=495 28.239317 top2=3767 28.060196 gap=0.179121
+[gap] pos=116 row=2/4 in_tok=495 top1=30988 26.415966 top2=1648 22.844721 gap=3.571245
+[gap] pos=117 row=3/4 in_tok=11 top1=526 24.473782 top2=10096 22.379229 gap=2.094553
+[mtpdbg] draft0=320 verified=320 HIT
+[gap] pos=115 row=0/4 in_tok=5084 top1=320 30.077393 top2=25 28.015450 gap=2.061943
+[gap] pos=116 row=1/4 in_tok=320 top1=495 30.596949 top2=3767 30.452801 gap=0.144148
+[gap] pos=117 row=2/4 in_tok=8 top1=549 20.651449 top2=414 18.460161 gap=2.191288
+[gap] pos=118 row=3/4 in_tok=286 top1=549 19.957523 top2=607 15.856752 gap=4.100771
+[mtpdbg] draft0=1648 verified=30988 miss
+[gap] pos=117 row=0/4 in_tok=495 top1=30988 28.001413 top2=1648 25.139830 gap=2.861584
+[gap] pos=118 row=1/4 in_tok=1648 top1=576 27.929256 top2=27564 23.029463 gap=4.899794
+[gap] pos=119 row=2/4 in_tok=576 top1=5916 28.268175 top2=2530 21.488234 gap=6.779942
+[gap] pos=120 row=3/4 in_tok=5916 top1=2436 30.778103 top2=11930 21.514402 gap=9.263700
+[mtpdbg] draft0=1648 verified=1648 HIT
+[gap] pos=118 row=0/4 in_tok=30988 top1=1648 28.417921 top2=8 18.846338 gap=9.571583
+[gap] pos=119 row=1/4 in_tok=1648 top1=576 27.598795 top2=27564 23.194836 gap=4.403959
+[gap] pos=120 row=2/4 in_tok=576 top1=5916 27.188635 top2=2436 21.294233 gap=5.894402
+[gap] pos=121 row=3/4 in_tok=5916 top1=2436 30.777073 top2=11930 21.703905 gap=9.073168
+
+[t=80  RSS 97.54 GB  hit 57%  0.24 tok/s  2.32 tok/fw]
+[mtpdbg] draft0=12810 verified=12810 HIT
+[gap] pos=122 row=0/4 in_tok=2436 top1=12810 27.464264 top2=624 26.186178 gap=1.278086
+[gap] pos=123 row=1/4 in_tok=12810 top1=624 30.561323 top2=320 22.966896 gap=7.594427
+[gap] pos=124 row=2/4 in_tok=624 top1=286 31.174517 top2=1789 21.958336 gap=9.216181
+[gap] pos=125 row=3/4 in_tok=286 top1=835 28.709648 top2=14875 17.203936 gap=11.505713
+[mtpdbg] draft0=2436 verified=5084 miss
+[gap] pos=126 row=0/4 in_tok=835 top1=5084 31.314114 top2=27118 19.881689 gap=11.432425
+[gap] pos=127 row=1/4 in_tok=2436 top1=320 22.607069 top2=25 16.580343 gap=6.026726
+[gap] pos=128 row=2/4 in_tok=320 top1=495 28.621229 top2=917 20.188374 gap=8.432856
+[gap] pos=129 row=3/4 in_tok=495 top1=30988 28.262320 top2=14 21.685699 gap=6.576620
+[mtpdbg] draft0=320 verified=320 HIT
+[gap] pos=127 row=0/4 in_tok=5084 top1=320 32.194702 top2=256 19.293806 gap=12.900896
+[gap] pos=128 row=1/4 in_tok=320 top1=495 33.510658 top2=917 23.915117 gap=9.595541
+[gap] pos=129 row=2/4 in_tok=495 top1=30988 31.230450 top2=14 21.113390 gap=10.117060
+[gap] pos=130 row=3/4 in_tok=257 top1=608 16.525337 top2=760 16.152426 gap=0.372911
+[mtpdbg] draft0=1648 verified=1648 HIT
+[gap] pos=130 row=0/4 in_tok=30988 top1=1648 30.070932 top2=8 18.531912 gap=11.539021
+[gap] pos=131 row=1/4 in_tok=1648 top1=576 29.888958 top2=13474 19.023209 gap=10.865749
+[gap] pos=132 row=2/4 in_tok=576 top1=2169 27.592419 top2=9103 24.558786 gap=3.033632
+[gap] pos=133 row=3/4 in_tok=1429 top1=9103 13.957706 top2=5084 13.755011 gap=0.202696
+[mtpdbg] draft0=2436 verified=2436 HIT
+[gap] pos=133 row=0/4 in_tok=2169 top1=2436 27.852798 top2=9103 24.924839 gap=2.927959
+[gap] pos=134 row=1/4 in_tok=2436 top1=12810 29.634186 top2=624 20.377468 gap=9.256718
+[gap] pos=135 row=2/4 in_tok=320 top1=269 18.309361 top2=12801 17.932276 gap=0.377085
+[gap] pos=136 row=3/4 in_tok=495 top1=30988 21.448997 top2=11 19.167479 gap=2.281519
+[mtpdbg] draft0=624 verified=624 HIT
+[gap] pos=135 row=0/4 in_tok=12810 top1=624 28.518587 top2=382 27.606504 gap=0.912083
+[gap] pos=136 row=1/4 in_tok=624 top1=1789 29.976797 top2=1066 28.476934 gap=1.499863
+[gap] pos=137 row=2/4 in_tok=286 top1=320 16.748089 top2=7036 16.057871 gap=0.690218
+[gap] pos=138 row=3/4 in_tok=320 top1=9109 21.603699 top2=5615 21.446028 gap=0.157671
+[mtpdbg] draft0=262 verified=262 HIT
+[gap] pos=137 row=0/2 in_tok=1789 top1=262 30.913750 top2=286 19.885658 gap=11.028091
+[gap] pos=138 row=1/2 in_tok=262 top1=5184 27.641134 top2=13374 22.263449 gap=5.377686
+
+[t=96  RSS 98.07 GB  hit 58%  0.24 tok/s  2.32 tok/fw]
