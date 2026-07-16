@@ -1,5 +1,6 @@
 /* sample.h — token sampling + lossless speculative verification (Leviathan).
- * Pure logic, no I/O, no model deps. Extracted verbatim from glm.c so the
+ * Pure logic, no I/O in the sampling paths (smp_init prints OOM and exits on
+ * allocation failure), no model deps. Extracted verbatim from glm.c so the
  * accept/ban-resample math is unit-testable (tests/test_sample.c).
  * RNG is BORROWED by pointer: the engine keeps one global sequence so that
  * SEED=n runs stay byte-reproducible across this refactor. *rng must be
