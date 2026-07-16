@@ -1609,7 +1609,9 @@ static int ngram_draft(const int *ids, int len, int G, int *draft){
  * Input: next_tok (appena emesso, posizione kv) e hlast (hidden pre-norm della pos kv-1).
  * Catena DeepSeek-V3: h' = Layer78( eh_proj[ enorm(emb(tok)) ; hnorm(h) ] ),
  * draft = argmax(lm_head(shared_head.norm(h'))). La KV del layer MTP vive alla riga n_layers
- * ed e' valida da kv_start (niente prefill: finestra di solo-decode, basta per il draft). */
+ * ed e' valida da kv_start; il prompt viene assorbito al prefill da step() (~1572),
+ * quindi la finestra copre l'intero contesto. Wiring verificato vs vLLM/SGLang:
+ * bench/spec/WIRING-AUDIT.md (seam 4 aperto: MTP_CHAINNORM, tag audit1). */
 static int mtp_argmax(const float *lo, int V){
     int b=0; float bv=lo[0]; for(int i=1;i<V;i++) if(lo[i]>bv){bv=lo[i];b=i;} return b;
 }
@@ -1643,7 +1645,12 @@ static int mtp_draft(Model *m, int next_tok, int kv, int G, int *draft){
         int t2=mtp_argmax(logit, c->vocab);
         if(dbg) fprintf(stderr,"[mtp2] pos=%d in_tok=%d ||eh||=%.1f ||post||=%.1f pre_blk=%d post_blk=%d\n",
                         pos, tok, sqrt(n_eh), sqrt(n_post), t_pre, t2);
-        draft[n++]=t2; tok=t2; memcpy(h, hx, D*sizeof(float));
+        draft[n++]=t2; tok=t2;
+        /* audit1 (WIRING-AUDIT seam 4): il riferimento ricicla nel passo successivo
+         * l'hidden POST shared_head.norm (= row), non hx grezzo. Default invariato
+         * finche' lo sweep Task-8 non elegge il vincitore. */
+        if(getenv("MTP_CHAINNORM")) memcpy(h, row, D*sizeof(float));
+        else memcpy(h, hx, D*sizeof(float));
     }
     free(x); free(cat); free(hx); free(nrm); free(tmp); free(row); free(logit); free(h);
     return n;
@@ -1660,6 +1667,9 @@ static void mtp_absorb(Model *m, const int *next_ids, const float *x, int S, int
     for(int i=0;i<S;i++){
         embed_row(m,next_ids[i],e);
         rmsnorm(e,e,m->enorm,D,c->eps);
+        /* audit2 (WIRING-AUDIT seam 6a): il riferimento azzera l'embedding alla
+         * posizione assoluta 0 ("masking inputs at position 0, as not needed by MTP"). */
+        if(pos_base+i==0 && getenv("MTP_MASK0")) memset(e,0,D*sizeof(float));
         if(prenorm) rmsnorm(hn,x+(int64_t)i*D,m->hnorm,D,c->eps);
         else { rmsnorm(hf,x+(int64_t)i*D,m->final_norm,D,c->eps);   /* vLLM: h POST model.norm */
                rmsnorm(hn,hf,m->hnorm,D,c->eps); }
