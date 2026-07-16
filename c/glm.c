@@ -37,6 +37,7 @@
 #include "model.h"                                /* R0: ModelProvider (naming + metadata) */
 #include "scheduler.h"                            /* R3: device placement policy */
 #include "grammar.h"                              /* metodo F: draft grammaticali (#48) */
+#include "sample.h"                               /* sampling + verifica Leviathan (testato) */
 #if defined(COLI_CUDA) || defined(COLI_HIP)
 #include <omp.h>
 #include "backend.h"                            /* R2/R3: CUDA|HIP device seam */
@@ -1724,44 +1725,14 @@ static int grammar_draft(int *draft, int cap){
  * Rejection sampling di Leviathan: accetta il draft x_d con prob p(x_d); al rifiuto
  * ricampiona da p con x_d azzerato e rinormalizzato. La distribuzione risultante e'
  * ESATTAMENTE p: la speculazione resta invisibile all'output anche col sampling. */
-static uint64_t g_rng=0x9E3779B97F4A7C15ULL;
-static inline double rndu(void){ g_rng^=g_rng<<13; g_rng^=g_rng>>7; g_rng^=g_rng<<17;
-    return (double)(g_rng>>11)*(1.0/9007199254740992.0); }
-static float *g_pbuf=NULL; static int *g_pidx=NULL;   /* buffer riusati (decode single-thread) */
-static int cmp_pdesc(const void *a,const void *b){
-    float pa=g_pbuf[*(const int*)a], pb=g_pbuf[*(const int*)b];
-    return pa<pb ? 1 : pa>pb ? -1 : 0; }
-/* costruisce in g_pbuf la distribuzione target: softmax(lo/temp) troncata a top-p g_nuc */
-static void dist_build(const float *lo, int V){
-    if(!g_pbuf){ g_pbuf=falloc(V); g_pidx=malloc(V*sizeof(int)); }
-    float mx=lo[0]; for(int i=1;i<V;i++) if(lo[i]>mx) mx=lo[i];
-    double s=0; float invt=1.f/(g_temp>1e-4f?g_temp:1e-4f);
-    for(int i=0;i<V;i++){ g_pbuf[i]=expf((lo[i]-mx)*invt); s+=g_pbuf[i]; }
-    for(int i=0;i<V;i++) g_pbuf[i]/=(float)s;
-    if(g_nuc>0 && g_nuc<1.f){
-        for(int i=0;i<V;i++) g_pidx[i]=i;
-        qsort(g_pidx,V,sizeof(int),cmp_pdesc);
-        double cum=0; int keep=V;
-        for(int i=0;i<V;i++){ cum+=g_pbuf[g_pidx[i]]; if(cum>=g_nuc){ keep=i+1; break; } }
-        double s2=0; for(int i=keep;i<V;i++) g_pbuf[g_pidx[i]]=0;
-        for(int i=0;i<keep;i++) s2+=g_pbuf[g_pidx[i]];
-        for(int i=0;i<keep;i++) g_pbuf[g_pidx[i]]/=(float)s2;
-    }
-}
-/* campiona da g_pbuf; ban>=0 -> quel token e' escluso (rinormalizzando al volo) */
-static int dist_sample(int V, int ban){
-    double z = 1.0 - (ban>=0 ? g_pbuf[ban] : 0.0); if(z<=1e-12) z=1e-12;
-    double u = rndu()*z, cum=0;
-    for(int i=0;i<V;i++){ if(i==ban) continue; cum+=g_pbuf[i]; if(cum>=u) return i; }
-    for(int i=V-1;i>=0;i--) if(i!=ban && g_pbuf[i]>0) return i;
-    return 0;
-}
+static uint64_t g_rng=0x9E3779B97F4A7C15ULL;      /* kept: seeded in main via SEED */
+static Smp g_smp={0};                             /* sampler unico dell'engine (sample.h) */
+static void smp_ready(int V){ if(!g_smp.p) smp_init(&g_smp,V,&g_rng); }
 /* prossimo token dai logits: greedy se g_temp<=0, altrimenti sampling.
  * ban = token escluso perche' rifiutato dalla verifica speculativa precedente. */
 static int pick_tok(const float *lo, int V, int ban){
-    if(g_temp<=0) return argmax_v(lo,V);
-    dist_build(lo,V);
-    return dist_sample(V,ban);
+    smp_ready(V);
+    return smp_pick(&g_smp,lo,g_temp,g_nuc,ban);
 }
 
 /* stop-set attivo (popolato da run_text/run_serve dal config; vuoto in validazione,
@@ -1824,8 +1795,8 @@ static int spec_decode(Model *m, int *all, int kv, int n_new, int eos, float *lo
         while(k<g && emitted<n_new){
             int accept;
             if(g_temp<=0) accept = (argmax_v(lo+(int64_t)k*V,V)==draft[k]);
-            else { dist_build(lo+(int64_t)k*V,V);          /* rejection sampling: p(draft) */
-                   accept = (rndu() < g_pbuf[draft[k]]); }
+            else { smp_ready(V); smp_dist(&g_smp,lo+(int64_t)k*V,g_temp,g_nuc); /* rejection sampling: p(draft) */
+                   accept = smp_accept_draft(&g_smp,draft[k]); }
             if(!accept){ if(g_temp>0) carry_ban=draft[k]; break; }
             if((eos>=0 && draft[k]==eos) || is_stop(draft[k])){ done=1; break; }
             emit(draft[k],ud); all[kv+1+k]=draft[k]; emitted++; m->n_emit++;

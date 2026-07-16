@@ -87,7 +87,7 @@ all: glm$(EXE)
 # phony 'glm' → 'glm.exe' on Windows (so 'make glm' and 'zun build' work on every platform)
 glm: glm$(EXE)
 
-glm$(EXE): glm.c st.h json.h tok.h tok_unicode.h compat.h grammar.h model.h cache.h sched.h backend.h profile.h $(CUDA_OBJ) $(HIP_OBJ)
+glm$(EXE): glm.c st.h json.h tok.h tok_unicode.h compat.h grammar.h model.h cache.h sched.h backend.h profile.h sample.h $(CUDA_OBJ) $(HIP_OBJ)
 	$(CC) $(CFLAGS) glm.c $(CUDA_OBJ) $(HIP_OBJ) -o glm$(EXE) $(LDFLAGS)
 
 backend_cuda.o: backend_cuda.cu backend_cuda.h

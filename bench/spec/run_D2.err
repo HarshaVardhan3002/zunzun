@@ -1,0 +1,50 @@
+[MTP] active: native speculative decoding (draft=3)
+[USAGE] expert history: 2877944 selections (C:/Users/Von/Downloads/model/.coli_usage)
+[PIN] hot store: 2446 experts in RAM (46.3 GB) loaded in 14s from C:/Users/Von/Downloads/model/.coli_usage
+[RAM_GB=109.1 auto] resident 56.7 GB + reserve 6.1 GB (ws 1.2, KV 1x4096 0.7, kvb 0.5), experts 18.9 MB x 77 layers -> cap lowered 64->31 (projected peak 107.9 GB)
+[stop] 3 stop tokens: 154820 154827 154829
+[prefill] layer 1/78 · 43 token
+[prefill] layer 5/78 · 43 token
+[prefill] layer 9/78 · 43 token
+[prefill] layer 13/78 · 43 token
+[prefill] layer 17/78 · 43 token
+[prefill] layer 21/78 · 43 token
+[prefill] layer 25/78 · 43 token
+[prefill] layer 29/78 · 43 token
+[prefill] layer 33/78 · 43 token
+[prefill] layer 37/78 · 43 token
+[prefill] layer 41/78 · 43 token
+[prefill] layer 45/78 · 43 token
+[prefill] layer 49/78 · 43 token
+[prefill] layer 53/78 · 43 token
+[prefill] layer 57/78 · 43 token
+[prefill] layer 61/78 · 43 token
+[prefill] layer 65/78 · 43 token
+[prefill] layer 69/78 · 43 token
+[prefill] layer 73/78 · 43 token
+[prefill] layer 77/78 · 43 token
+[prefill] layer 78/78 · 43 token
+
+[t=16  RSS 98.61 GB  hit 42%  0.16 tok/s  2.50 tok/fw]
+
+[t=32  RSS 99.31 GB  hit 50%  0.21 tok/s  2.38 tok/fw]
+
+[t=48  RSS 99.98 GB  hit 53%  0.25 tok/s  2.47 tok/fw]
+
+[t=64  RSS 100.67 GB  hit 56%  0.26 tok/s  2.33 tok/fw]
+
+[t=80  RSS 101.38 GB  hit 58%  0.28 tok/s  2.32 tok/fw]
+
+[t=96  RSS 101.92 GB  hit 59%  0.28 tok/s  2.32 tok/fw]
+
+[t=112  RSS 102.52 GB  hit 60%  0.29 tok/s  2.27 tok/fw]
+
+[t=128  RSS 102.89 GB  hit 60%  0.30 tok/s  2.31 tok/fw]
+
+[t=144  RSS 103.03 GB  hit 61%  0.30 tok/s  2.27 tok/fw]
+
+[t=160  RSS 103.50 GB  hit 61%  0.30 tok/s  2.24 tok/fw]
+
+[t=176  RSS 104.19 GB  hit 61%  0.30 tok/s  2.22 tok/fw]
+
+[t=192  RSS 104.85 GB  hit 61%  0.31 tok/s  2.25 tok/fw]

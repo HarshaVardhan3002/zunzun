@@ -2,10 +2,12 @@
  * Pure logic, no I/O, no model deps. Extracted verbatim from glm.c so the
  * accept/ban-resample math is unit-testable (tests/test_sample.c).
  * RNG is BORROWED by pointer: the engine keeps one global sequence so that
- * SEED=n runs stay byte-reproducible across this refactor. */
+ * SEED=n runs stay byte-reproducible across this refactor. *rng must be
+ * NONZERO: xorshift64 has an absorbing zero state (0 maps to 0 forever). */
 #ifndef COLI_SAMPLE_H
 #define COLI_SAMPLE_H
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -26,6 +28,7 @@ static inline void smp_init(Smp *s,int V,uint64_t *rng){
     s->V=V; s->rng=rng;
     s->p=malloc((size_t)V*sizeof(float));
     s->idx=malloc((size_t)V*sizeof(int));
+    if(!s->p||!s->idx){fprintf(stderr,"OOM\n");exit(1);}
 }
 static inline void smp_free(Smp *s){ free(s->p); free(s->idx); s->p=NULL; s->idx=NULL; }
 
