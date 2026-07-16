@@ -1766,6 +1766,20 @@ static void stops_arm(const Cfg *c, int tok_eos){
     fprintf(stderr,"\n");
 }
 
+/* acceptance per draft depth: [j] = drafts proposed/accepted at position j+1.
+ * Model-agnostic: counts only the verify loop, no GLM specifics. */
+static uint64_t g_dpos_prop[64], g_dpos_acc[64];
+static void spec_depth_report(FILE *f){
+    int last=-1; for(int j=0;j<64;j++) if(g_dpos_prop[j]) last=j;
+    if(last<0) return;
+    fprintf(f,"acceptance by depth:");
+    for(int j=0;j<=last;j++)
+        fprintf(f," d%d %.0f%% (%llu/%llu)", j+1,
+            g_dpos_prop[j]?100.0*g_dpos_acc[j]/g_dpos_prop[j]:0.0,
+            (unsigned long long)g_dpos_acc[j],(unsigned long long)g_dpos_prop[j]);
+    fprintf(f,"\n");
+}
+
 /* decode greedy con SELF-SPECULATION n-gram: LOSSLESS (output identico al greedy puro).
  * Ogni forward verifica fino a g_draft token proposti dal contesto: i token accettati
  * costano UNA sola passata sui pesi -> disco e banda RAM ammortizzati su piu' token.
@@ -1831,6 +1845,12 @@ static int spec_decode(Model *m, int *all, int kv, int n_new, int eos, float *lo
             emit(draft[k],ud); all[kv+1+k]=draft[k]; emitted++; m->n_emit++;
             gr_feed(draft[k]); k++;
         }
+        /* per-depth histogram: count only genuinely examined positions.
+         * Loop exits: k==g (all accepted), emitted>=n_new (limit), done (EOS/stop
+         * on an accepted draft), or !accept break (rejection). Only the rejection
+         * case leaves k<g && !done && emitted<n_new, so that position gets prop-only. */
+        for(int j=0;j<k && j<64;j++){ g_dpos_prop[j]++; g_dpos_acc[j]++; }
+        if(k<g && k<64 && !done && emitted<n_new) g_dpos_prop[k]++;   /* the rejected one */
         if(gsrc==1) g_gr_acc+=(uint64_t)k;
         else if(gsrc==2 && m->has_mtp) m->mtp_acc+=k;
         if(m->has_mtp && k>=1) mtp_absorb(m, all+kv+1, m->h_all, k, kv);   /* KV MTP in sync coi verificati */
@@ -1986,6 +2006,7 @@ static void run_text(Model *m, const char *snap, const char *prompt, int ngen){
     printf("speculation: %.2f tokens/forward (%llu forwards per %llu tokens) | MTP acceptance %.0f%% (%llu/%llu)\n",
         m->n_fw?(double)m->n_emit/m->n_fw:1.0, (unsigned long long)m->n_fw, (unsigned long long)m->n_emit,
         m->mtp_prop?100.0*m->mtp_acc/m->mtp_prop:0.0, (unsigned long long)m->mtp_acc, (unsigned long long)m->mtp_prop);
+    spec_depth_report(stdout);
     if(g_gr_prop) printf("grammar: %.0f%% acceptance (%llu/%llu forced drafts)\n",
         100.0*g_gr_acc/g_gr_prop, (unsigned long long)g_gr_acc, (unsigned long long)g_gr_prop);
 #ifdef COLI_GPU
