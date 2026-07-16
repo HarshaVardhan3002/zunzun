@@ -1766,18 +1766,26 @@ static void stops_arm(const Cfg *c, int tok_eos){
     fprintf(stderr,"\n");
 }
 
-/* acceptance per draft depth: [j] = drafts proposed/accepted at position j+1.
- * Model-agnostic: counts only the verify loop, no GLM specifics. */
-static uint64_t g_dpos_prop[64], g_dpos_acc[64];
+/* acceptance per draft depth AND source: [s][j] = drafts proposed/accepted at
+ * position j+1 from source s (0=MTP head, 1=n-gram, 2=grammar). Source
+ * attribution is a Phase-1 spec requirement; the seam is model-agnostic
+ * (any engine draft source maps onto one of the three).
+ * g_ng_prop/acc: aggregate n-gram counters (the MTP/grammar equivalents live
+ * on Model / g_gr_*; n-gram was previously uncounted). */
+static uint64_t g_dpos_prop[3][64], g_dpos_acc[3][64];
+static uint64_t g_ng_prop=0, g_ng_acc=0;
+static const char *g_dsrc_name[3]={"mtp","ngram","grammar"};
 static void spec_depth_report(FILE *f){
-    int last=-1; for(int j=0;j<64;j++) if(g_dpos_prop[j]) last=j;
-    if(last<0) return;
-    fprintf(f,"acceptance by depth:");
-    for(int j=0;j<=last;j++)
-        fprintf(f," d%d %.0f%% (%llu/%llu)", j+1,
-            g_dpos_prop[j]?100.0*g_dpos_acc[j]/g_dpos_prop[j]:0.0,
-            (unsigned long long)g_dpos_acc[j],(unsigned long long)g_dpos_prop[j]);
-    fprintf(f,"\n");
+    for(int s=0;s<3;s++){
+        int last=-1; for(int j=0;j<64;j++) if(g_dpos_prop[s][j]) last=j;
+        if(last<0) continue;
+        fprintf(f,"acceptance by depth [%s]:",g_dsrc_name[s]);
+        for(int j=0;j<=last;j++)
+            fprintf(f," d%d %.0f%% (%llu/%llu)", j+1,
+                g_dpos_prop[s][j]?100.0*g_dpos_acc[s][j]/g_dpos_prop[s][j]:0.0,
+                (unsigned long long)g_dpos_acc[s][j],(unsigned long long)g_dpos_prop[s][j]);
+        fprintf(f,"\n");
+    }
 }
 
 /* decode greedy con SELF-SPECULATION n-gram: LOSSLESS (output identico al greedy puro).
@@ -1813,7 +1821,7 @@ static int spec_decode(Model *m, int *all, int kv, int n_new, int eos, float *lo
         }
         if(!g && g_draft>0){
             if(m->has_mtp){ g=mtp_draft(m,next,kv,g_draft,draft); m->mtp_prop+=g; if(g)gsrc=2; }
-            else { g=ngram_draft(all,kv+1,g_draft,draft); if(g)gsrc=2; }
+            else { g=ngram_draft(all,kv+1,g_draft,draft); g_ng_prop+=(uint64_t)g; if(g)gsrc=2; }
         }
         if(g>n_new-emitted) g=n_new-emitted;
         if(kv+1+g+1>m->max_t) g=m->max_t-kv-2;
@@ -1849,10 +1857,11 @@ static int spec_decode(Model *m, int *all, int kv, int n_new, int eos, float *lo
          * Loop exits: k==g (all accepted), emitted>=n_new (limit), done (EOS/stop
          * on an accepted draft), or !accept break (rejection). Only the rejection
          * case leaves k<g && !done && emitted<n_new, so that position gets prop-only. */
-        for(int j=0;j<k && j<64;j++){ g_dpos_prop[j]++; g_dpos_acc[j]++; }
-        if(k<g && k<64 && !done && emitted<n_new) g_dpos_prop[k]++;   /* the rejected one */
+        { int src = gsrc==1 ? 2 : (m->has_mtp ? 0 : 1);
+          for(int j=0;j<k && j<64;j++){ g_dpos_prop[src][j]++; g_dpos_acc[src][j]++; }
+          if(k<g && k<64 && !done && emitted<n_new) g_dpos_prop[src][k]++; }  /* the rejected one */
         if(gsrc==1) g_gr_acc+=(uint64_t)k;
-        else if(gsrc==2 && m->has_mtp) m->mtp_acc+=k;
+        else if(gsrc==2){ if(m->has_mtp) m->mtp_acc+=k; else g_ng_acc+=(uint64_t)k; }
         if(m->has_mtp && k>=1) mtp_absorb(m, all+kv+1, m->h_all, k, kv);   /* KV MTP in sync coi verificati */
         /* hlast deve corrispondere all'ultima posizione ACCETTATA (kv+k), non a fine batch */
         if(m->h_all && k<S-1) memcpy(m->hlast, m->h_all+(int64_t)k*m->c.hidden, m->c.hidden*sizeof(float));
@@ -2009,6 +2018,8 @@ static void run_text(Model *m, const char *snap, const char *prompt, int ngen){
     spec_depth_report(stdout);
     if(g_gr_prop) printf("grammar: %.0f%% acceptance (%llu/%llu forced drafts)\n",
         100.0*g_gr_acc/g_gr_prop, (unsigned long long)g_gr_acc, (unsigned long long)g_gr_prop);
+    if(g_ng_prop) printf("n-gram: %.0f%% acceptance (%llu/%llu proposed drafts)\n",
+        100.0*g_ng_acc/g_ng_prop, (unsigned long long)g_ng_acc, (unsigned long long)g_ng_prop);
 #ifdef COLI_GPU
     if(m->gpu_expert_count) printf("CUDA expert tier: %d resident experts (%.2f GB) | %llu calls served from VRAM\n",
         m->gpu_expert_count,m->gpu_expert_bytes/1e9,(unsigned long long)m->gpu_expert_calls);
