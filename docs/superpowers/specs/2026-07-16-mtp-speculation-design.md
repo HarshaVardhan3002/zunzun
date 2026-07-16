@@ -140,7 +140,7 @@ With a healthy head:
 - **Reference code availability:** GLM-5.2's HF modeling file is needed for the
   audit; if unavailable, fall back to DeepSeek-V3's (same MTP lineage).
 
-## Follow-up Project (separate spec)
+## Follow-up Projects (separate specs)
 
 **Qwen3-Coder-Next bring-up / general MoE engine.** `Qwen/Qwen3-Coder-Next`
 (80B total / ~3B active, `qwen3_next` architecture, Apache-2.0, Jan 2026):
@@ -157,3 +157,26 @@ With a healthy head:
 
 That project gets its own brainstorm → spec → plan cycle and inherits a healthy,
 model-agnostic speculation stack from this one.
+
+**Orchestrator / router layer (1B front-model + GLM prefetch).** Proposed
+2026-07-16: a small (~1B) always-resident orchestrator model answers trivial
+queries (greetings, meta questions) instantly and routes hard queries to GLM,
+firing the matching intent profile (`--profile` / `PROFILE`, shipped 614ac7b)
+so expert-cache staging begins while the user is still reading the router's
+first tokens.
+
+- Primary win: first-token latency on trivial queries drops from minutes (GLM
+  prompt processing) to milliseconds; the prefetch overlap converts user
+  reading time into cache-warming time for hard queries.
+- Explicitly NOT a GLM decode speedup: hard-query tok/s stays bandwidth-bound
+  (that is this spec's territory). Gains are perceived/average latency, not
+  raw throughput. The cache/LRU machinery remains; the orchestrator is a
+  staging-hint client, not a replacement.
+- Deployment: day-1 the 1B runs on CPU (negligible cost at ~50+ tok/s);
+  moving it to the XDNA2 NPU (~50 TOPS, idle today) via the Ryzen AI ONNX
+  stack is a later optimization (AMD GAIA is prior art for the pattern).
+- Open design questions: router misclassification policy (conservative
+  thresholds, escalate on doubt), transcript handoff between models.
+- Synergy with this spec: a small same-tokenizer model could double as a
+  speculation draft model if the MTP head hits an acceptance ceiling in
+  Phase 2.
