@@ -322,6 +322,7 @@ Expected: A==A2 and D==D2 (same RNG sequence, same math ⇒ same bytes). If A2 d
 - [ ] **Step 4.2:** Follow the branch the evidence selected:
   - **Leviathan test failed (Task 2.5):** fix the math in `sample.h` minimally; the statistical test is the regression test. Re-run Task 3.4 (goldens will legitimately change for sampled runs — regenerate and note it).
   - **Greedy D≠E (Task 1.5):** lossless invariant broken outside sampling — instrument `spec_decode` around the first divergent position (`MTP_DEBUG=1`, print accepted `k`, `kv`, and `hlast` position ~1838) and inspect `mtp_absorb`'s position bookkeeping (~1836: `all+kv+1`, `pos_base=kv`). Fix; regression = greedy D/E MD5 equality added as a step in `bench/spec_probe.sh --check`.
+    **AMENDMENT (Task 4 verdict, commit 16d8f72):** this branch was followed and the root cause is batched-vs-single forward FP numerics (I4S kernel S-gate + MoE batch-union accumulation order), NOT a bookkeeping bug — see `bench/spec/BISECT.md` "Phase 0 verdict". Bit-exact greedy D/E equality is therefore **unattainable by design** on this engine; do NOT add a greedy MD5-equality check to `spec_probe.sh --check`. Losslessness holds in distribution (guaranteed by `test_leviathan_lossless`); greedy divergences must be near-tie flips consistent with the verdict.
   - **A & B both garble (speculation innocent):** the bug is sampling quality or emit. Check emit first: `emit_stream` (~1852) decodes one token at a time into a 63-byte buffer — verify no token in the garbled region decodes to >63 bytes and that multi-byte UTF-8 sequences split across tokens survive `fputs`. If emit is clean, the verdict is *generation quality* (temp 0.7 / nucleus 0.90 / int4 noise): document, and test lower `NUCLEUS=0.85` as mitigation data only.
   - **Nothing reproduces:** garbling was environmental (e.g. the earlier serve-pipe CRLF class of bug already fixed). Document in `BISECT.md` with the four clean outputs as evidence; gate passes.
 - [ ] **Step 4.3: Commit** fix + regression evidence: `git commit -am "fix(spec): <root cause> — phase-0 gate closed"`. **Do not start Task 5 until this task's verdict is written.**
@@ -468,7 +469,7 @@ SNAP="C:/Users/Von/Downloads/model" PIPE=1 TEMP=0 NGEN=128 SEED=1 PROMPT='[gMASK
 md5sum ../bench/spec/final_nodraft.out ../bench/spec/final_draft.out
 ```
 
-Expected: **identical** (modulo the header lines that print `draft=N` — strip lines 1–3 with `tail -n +4` before hashing if they differ only there; note which in PROBES.md).
+Expected (**amended per Task 4 verdict, commit 16d8f72**): bit-exact equality is NOT the gate — it is unattainable on this engine (batched-vs-single forward numerics; see BISECT.md "Phase 0 verdict"). The gate is: (a) both outputs are clean, coherent code/text with no dropped-token garbling; (b) if the text-region hashes (`tail -n +4`, stop at `---`) differ, re-run the draft config with `MTP_DEBUG=1` and confirm the first divergent position is a near-tie flip (`[gap]` line, small gap, same top-2 set) consistent with the verdict; record the outcome and gap numbers in PROBES.md.
 
 - [ ] **Step 11.2: Real-session confirmation with the full GPU config:** one `./run_glm52.sh` chat turn (~300 tokens, a coding prompt), record tok/s, tok/forward, acceptance from the stderr heartbeat + endstats vs the 2026-07-15 baseline (0.49 tok/s, 1.85 tok/fw, 28%). Also eyeball the generated code for the Phase-0 garbling pattern — it must be gone (or match the Task-4 verdict).
 - [ ] **Step 11.3:** `make test-c` PASS; update `run_glm52.sh`'s comment block if the `DRAFT` default changed. Commit.
@@ -487,8 +488,8 @@ Expected: **identical** (modulo the header lines that print `draft=N` — strip 
 |---|---|
 | Rejection sampling is mathematically lossless | `test_sample.c::test_leviathan_lossless` (statistical, fixed seed) |
 | `sample.h` refactor changed nothing | MD5 of re-runs vs Task-1 goldens (same SEED) |
-| Speculation invisible under greedy | Task 1.5 + Task 11.1 MD5 equality |
-| Bug root-caused | `bench/spec/BISECT.md` verdict + regression test |
+| Speculation lossless in distribution (greedy bit-equality unattainable per Task 4 verdict) | `test_leviathan_lossless` + Task 11.1 amended gate (clean text; divergences = documented near-tie flips) |
+| Bug root-caused | `bench/spec/BISECT.md` "Phase 0 verdict" (16d8f72): I4S kernel S-gate + MoE union order; H1 exonerated |
 | Acceptance improvement is real | `bench/spec/PROBES.md` — same prompt/seed/config rows |
 | Depth default is optimal | Task 10 tok/s table |
 | End-to-end win | Task 11.2 real session vs 2026-07-15 baseline |
