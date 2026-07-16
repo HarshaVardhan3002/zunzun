@@ -30,7 +30,9 @@ chat throughput roughly doubles (0.49 → ~1 tok/s) with zero extra bytes read.
 2. **Acceptance ≥60%** on the native MTP head (or a documented finding of why 28%
    is the real ceiling).
 3. **Tokens/forward ≥3** at the tuned default draft depth; warm chat tok/s
-   measurably improved in a real session.
+   measurably improved in a real session. (Conditional on Phase 2 succeeding —
+   if the documented-ceiling exit is taken, Phase 3 shrinks to re-verifying
+   current defaults and the project ends there.)
 4. **Portability:** every artifact this project builds is model-agnostic (see
    Portability Requirement) so the follow-up Qwen3-Coder-Next project inherits it.
 
