@@ -29,6 +29,18 @@
   #define coli_gpu_map           coli_hip_map
   #define coli_gpu_unmap         coli_hip_unmap
   #define coli_gpu_matmul_mapped coli_hip_matmul_mapped
+  /* Upstream (2026-07) CUDA-only APIs the HIP backend does not implement yet:
+   * inert fallbacks so shared COLI_GPU code compiles. tensor_update FAILS (0)
+   * so REPIN's VRAM-refresh path is never taken on HIP; group stats read 0. */
+  #include <stdint.h>
+  static inline int coli_cuda_tensor_update(ColiHipTensor *t, const void *w, const float *s){
+      (void)t; (void)w; (void)s; return 0;
+  }
+  static inline void coli_cuda_group_stats(uint64_t *calls, uint64_t *experts, uint64_t *rows,
+                                           double *h2d, double *kernel, double *d2h){
+      if(calls)*calls=0; if(experts)*experts=0; if(rows)*rows=0;
+      if(h2d)*h2d=0; if(kernel)*kernel=0; if(d2h)*d2h=0;
+  }
 
 #elif defined(COLI_CUDA)
   #include "backend_cuda.h"

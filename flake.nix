@@ -17,6 +17,8 @@
           safetensors
           huggingface-hub
           numpy
+          tokenizers
+          datasets
         ]);
 
         zunzun = pkgs.stdenv.mkDerivation {
