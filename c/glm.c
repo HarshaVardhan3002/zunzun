@@ -576,11 +576,11 @@ static float g_nuc=0.95f;/* NUCLEUS: top-p sul vocabolario (default dal generati
 static int g_topk=0;     /* TOPK=n -> usa n expert/token invece di config (ricerca: meno disco) */
 static float g_topp=0;   /* TOPP=p (0..1) -> top-p adattivo: tieni gli expert fino a peso cumulato p */
 static int g_spec=1;     /* metodo C: SPEC=0 disabilita il prefetch speculativo cross-layer */
-static int g_draft=0;    /* metodo E: DRAFT=n token auto-speculati per forward via n-gram lookup
-                          * (0=off). LOSSLESS: verifica = output identico al greedy. Default OFF:
-                          * misurato sul run reale (2026-07-03) acceptance ~5% -> ogni draft
-                          * rifiutato paga comunque i suoi expert dal disco = ~3x piu' lento.
-                          * Opt-in (DRAFT=4) per testi ripetitivi dove l'acceptance e' alta. */
+static int g_draft=0;    /* metodo E: DRAFT=n token auto-speculati per forward (testa MTP nativa,
+                          * fallback n-gram). LOSSLESS: verifica = output identico al greedy.
+                          * Auto (-1): 4 con MTP, 0 senza — con il chain-norm fix (WIRING-AUDIT
+                          * seam 4) l'acceptance MTP e' 61-67% e d4 rende 3.43 tok/fw; il puro
+                          * n-gram resta OFF (acceptance ~5% misurata 2026-07-03). */
 /* metodo F (#48): GRAMMAR=<file.gbnf> -> terza sorgente di draft, la grammatica stessa.
  * Nei workload a output vincolato (JSON/NDJSON, function calling) i byte FORZATI dalla
  * grammatica (chiavi, punteggiatura, valori enum) sono draft gratuiti ad acceptance ~1:
@@ -1611,7 +1611,7 @@ static int ngram_draft(const int *ids, int len, int G, int *draft){
  * draft = argmax(lm_head(shared_head.norm(h'))). La KV del layer MTP vive alla riga n_layers
  * ed e' valida da kv_start; il prompt viene assorbito al prefill da step() (~1572),
  * quindi la finestra copre l'intero contesto. Wiring verificato vs vLLM/SGLang:
- * bench/spec/WIRING-AUDIT.md (seam 4 aperto: MTP_CHAINNORM, tag audit1). */
+ * bench/spec/WIRING-AUDIT.md (seam 4 chiuso: chain-norm di default, vedi ~1649). */
 static int mtp_argmax(const float *lo, int V){
     int b=0; float bv=lo[0]; for(int i=1;i<V;i++) if(lo[i]>bv){bv=lo[i];b=i;} return b;
 }
@@ -1646,11 +1646,11 @@ static int mtp_draft(Model *m, int next_tok, int kv, int G, int *draft){
         if(dbg) fprintf(stderr,"[mtp2] pos=%d in_tok=%d ||eh||=%.1f ||post||=%.1f pre_blk=%d post_blk=%d\n",
                         pos, tok, sqrt(n_eh), sqrt(n_post), t_pre, t2);
         draft[n++]=t2; tok=t2;
-        /* audit1 (WIRING-AUDIT seam 4): il riferimento ricicla nel passo successivo
-         * l'hidden POST shared_head.norm (= row), non hx grezzo. Default invariato
-         * finche' lo sweep Task-8 non elegge il vincitore. */
-        if(getenv("MTP_CHAINNORM")) memcpy(h, row, D*sizeof(float));
-        else memcpy(h, hx, D*sizeof(float));
+        /* WIRING-AUDIT seam 4, adottato dallo sweep Task-8 (audit1: 67% vs 51%,
+         * 3.00 vs 2.53 tok/fw): si ricicla l'hidden POST shared_head.norm (= row),
+         * come vLLM/SGLang. MTP_RAWCHAIN=1 ripristina il vecchio hx grezzo (controllo). */
+        if(getenv("MTP_RAWCHAIN")) memcpy(h, hx, D*sizeof(float));
+        else memcpy(h, row, D*sizeof(float));
     }
     free(x); free(cat); free(hx); free(nrm); free(tmp); free(row); free(logit); free(h);
     return n;
@@ -2783,7 +2783,7 @@ int main(int argc, char **argv){
     printf("== GLM C engine (glm_moe_dsa), cache=%d experts/layer | experts@%d-bit dense@%d-bit | idot: " IDOT_KERNEL " ==\n", cap, ebits, dbits);
     g_mem_avail_boot = mem_available_gb();
     Model m; double t0=now_s(); model_init(&m,snap,cap,ebits,dbits);
-    if(g_draft<0) g_draft = m.has_mtp ? 3 : 0;
+    if(g_draft<0) g_draft = m.has_mtp ? 4 : 0;   /* sweep Task-10 2026-07-17: d4 = 3.43 tok/fw, miglior tok/s dopo d2 */
     if(getenv("DSA_TOPK")) m.c.index_topk=atoi(getenv("DSA_TOPK"));   /* override per test */
     printf("loaded in %.2fs | resident dense: %.2f MB | layers=%d experts=%d | MTP %s (draft=%d)\n",
            now_s()-t0, m.resident_bytes/(1024.0*1024.0), m.c.n_layers, m.c.n_experts,

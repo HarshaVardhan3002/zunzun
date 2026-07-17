@@ -45,3 +45,33 @@ acceptance by depth [mtp]: d1 94% (30/32) d2 72% (21/29) d3 62% (13/21)
 speculation: 2.46 tokens/forward (39 forwards per 96 tokens) | MTP acceptance 49% (57/117)
 acceptance by depth [mtp]: d1 90% (35/39) d2 53% (18/34) d3 22% (4/18)
 
+## default3  (2026-07-17 11:27:04)  []
+96 tokens in 296.64s (0.32 tok/s) | expert hit rate 60.6% | RSS 103.49 GB
+speculation: 3.00 tokens/forward (32 forwards per 96 tokens) | MTP acceptance 67% (64/96)
+acceptance by depth [mtp]: d1 94% (30/32) d2 72% (21/29) d3 62% (13/21)
+
+## rawchain  (2026-07-17 11:32:51)  [MTP_RAWCHAIN=1]
+96 tokens in 313.47s (0.31 tok/s) | expert hit rate 61.7% | RSS 103.84 GB
+speculation: 2.53 tokens/forward (38 forwards per 96 tokens) | MTP acceptance 51% (58/114)
+acceptance by depth [mtp]: d1 87% (33/38) d2 56% (18/32) d3 39% (7/18)
+
+## d2  (2026-07-17 11:37:12)  [DRAFT=2]
+96 tokens in 227.36s (0.42 tok/s) | expert hit rate 61.2% | RSS 104.17 GB
+speculation: 2.74 tokens/forward (35 forwards per 96 tokens) | MTP acceptance 86% (60/70)
+acceptance by depth [mtp]: d1 94% (33/35) d2 82% (27/33)
+
+## d4  (2026-07-17 11:41:56)  [DRAFT=4]
+96 tokens in 251.11s (0.38 tok/s) | expert hit rate 61.8% | RSS 103.13 GB
+speculation: 3.43 tokens/forward (28 forwards per 96 tokens) | MTP acceptance 61% (68/112)
+acceptance by depth [mtp]: d1 93% (26/28) d2 85% (22/26) d3 64% (14/22) d4 43% (6/14)
+
+## d6  (2026-07-17 11:47:02)  [DRAFT=6]
+96 tokens in 273.77s (0.35 tok/s) | expert hit rate 59.1% | RSS 103.08 GB
+speculation: 4.00 tokens/forward (24 forwards per 96 tokens) | MTP acceptance 50% (72/144)
+acceptance by depth [mtp]: d1 100% (24/24) d2 88% (21/24) d3 60% (12/20) d4 58% (7/12) d5 71% (5/7) d6 60% (3/5)
+
+## d8  (2026-07-17 11:54:00)  [DRAFT=8]
+96 tokens in 385.88s (0.25 tok/s) | expert hit rate 60.0% | RSS 103.57 GB
+speculation: 3.31 tokens/forward (29 forwards per 96 tokens) | MTP acceptance 29% (67/232)
+acceptance by depth [mtp]: d1 93% (27/29) d2 62% (16/26) d3 69% (11/16) d4 73% (8/11) d5 50% (4/8) d6 25% (1/4) d7 0% (0/1)
+
