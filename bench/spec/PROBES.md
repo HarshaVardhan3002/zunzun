@@ -75,3 +75,51 @@ acceptance by depth [mtp]: d1 100% (24/24) d2 88% (21/24) d3 60% (12/20) d4 58% 
 speculation: 3.31 tokens/forward (29 forwards per 96 tokens) | MTP acceptance 29% (67/232)
 acceptance by depth [mtp]: d1 93% (27/29) d2 62% (16/26) d3 69% (11/16) d4 73% (8/11) d5 50% (4/8) d6 25% (1/4) d7 0% (0/1)
 
+## gate_e  (2026-07-17 12:01:19)  [DRAFT=0]
+96 tokens in 249.76s (0.38 tok/s) | expert hit rate 66.5% | RSS 95.87 GB
+speculation: 1.01 tokens/forward (95 forwards per 96 tokens) | MTP acceptance 0% (0/0)
+
+## gate_d  (2026-07-17 12:06:06)  [MTP_DEBUG=1]
+96 tokens in 254.36s (0.38 tok/s) | expert hit rate 62.8% | RSS 105.54 GB
+speculation: 3.43 tokens/forward (28 forwards per 96 tokens) | MTP acceptance 61% (68/112)
+acceptance by depth [mtp]: d1 93% (26/28) d2 85% (22/26) d3 64% (14/22) d4 43% (6/14)
+
+## gate_e2  (2026-07-17 12:12:29)  [DRAFT=0 MTP_DEBUG=1]
+96 tokens in 241.63s (0.40 tok/s) | expert hit rate 67.8% | RSS 100.19 GB
+speculation: 1.01 tokens/forward (95 forwards per 96 tokens) | MTP acceptance 0% (0/0)
+
+
+---
+## Task-11 ship gate — near-tie divergence check (2026-07-17): PASS
+
+Greedy plain (`gate_e`/`gate_e2`, DRAFT=0) vs greedy speculative at the adopted
+default (`gate_d`, chain-norm, DRAFT auto=4), same prompt/seed:
+
+- **Clean text both sides** — valid Dijkstra/heapq Python, no dropped tokens.
+- **Plain greedy is reproducible**: gate_e and gate_e2 text regions hash identical
+  (md5 499f6b6e74a263c56185a3fc5e7633df).
+- **First divergence = one near-tie flip at pos 40** (input token 1191), same top-2
+  candidates in both runs, order reversed by batched-vs-single FP numerics
+  (Phase-0 verdict, BISECT.md):
+  - E (S=1 row): `top1=5084 26.657 top2=11 26.523 gap=0.135`
+  - D (S=5 row): `top1=11 26.960 top2=5084 26.889 gap=0.071`
+  Typical gaps elsewhere run 2–13; every later difference is conditioned on this
+  flip (different context, legitimately different continuation).
+- Remaining gate item (user session): real GPU-config chat vs the 2026-07-15
+  baseline 0.49 tok/s / 1.85 tok/fw / 28% acceptance.
+
+## Summary (Tasks 6–11)
+
+| config | acceptance | tok/fw | probe tok/s |
+|---|---|---|---|
+| old default (raw-hx chain, d3) | 51% | 2.53 | 0.31–0.33 |
+| chain-norm d3 (audit1) | 67% | 3.00 | 0.32–0.38 |
+| **chain-norm d4 (new default)** | **61%** | **3.43** | **0.38** |
+| chain-norm d2 | 86% | 2.74 | 0.42 |
+| chain-norm d6 | 50% | 4.00 | 0.35 |
+| chain-norm d8 | 29% | 3.31 | 0.25 |
+
+WIRING-AUDIT seam 4 (recycle post-shared_head.norm hidden into chained drafts,
+as vLLM/SGLang) was the acceptance bug; adopted in glm.c with `MTP_RAWCHAIN=1`
+as the legacy control. Spec goals met at the new default: acceptance ≥60,
+tok/fw ≥3. Controls: MTP_SWAP 0%, MTP_PRENORM kills d3, MTP_MASK0 noise.
