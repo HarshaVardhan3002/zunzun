@@ -110,6 +110,7 @@ typedef struct {
     float **Lc, **Rc, **Ic;
     int *kv_start, max_t;
     int disk_nrec;
+    int disk_wm;                                 /* record che finiscono su un turno COMPLETO (kvdisk.h) */
     char disk_path[2048];
 } KVState;
 
@@ -152,6 +153,7 @@ typedef struct {
 
 #include "cache.h"                                  /* R1: ExpertCache facade (needs ESlot + Model) */
 #include "profile.h"                                 /* intent profiles: blend/validation/top-k diff */
+#include "kvdisk.h"                                  /* KV-resume watermark: mai riprendere un mezzo turno */
 
 static void usage_save(Model *m);        /* cache che impara: definita accanto a stats_dump */
 #ifdef COLI_GPU
@@ -2126,29 +2128,35 @@ static void repin_pass(Model *m){
  * append lascia nrec vecchio = file coerente. La riga KV del layer MTP non si salva:
  * al resume kv_start=-1 e la finestra di draft riparte da sola. */
 static int g_kvsave=1;
-#define KV_MAGIC "COLIKV1\0"
-static void kv_hdr(Model *m, int32_t *h, int nrec){
+/* COLIKV2: h[7] (era 0 inutilizzato) = watermark del resume — il numero di record
+ * che finisce su un turno COMPLETO (EOS, non troncato da NGEN). L'EOS non viene
+ * mai emesso in hist, quindi la completezza si registra QUI all'append; al load
+ * si riprende solo fino al watermark (bug "mezzo turno" 2026-07-17). I file
+ * COLIKV1 hanno magic diverso -> ignorati, si riparte da zero (una volta sola). */
+#define KV_MAGIC "COLIKV2\0"
+static void kv_hdr(Model *m, int32_t *h, int nrec, int wm){
     Cfg *c=&m->c; int nic=0;
     for(int i=0;i<c->n_layers;i++) if(m->Ic && m->Ic[i]) nic++;
     h[0]=c->n_layers; h[1]=c->kv_lora; h[2]=c->qk_rope;
-    h[3]=m->has_dsa?c->index_hd:0; h[4]=nic; h[5]=c->vocab; h[6]=nrec; h[7]=0;
+    h[3]=m->has_dsa?c->index_hd:0; h[4]=nic; h[5]=c->vocab; h[6]=nrec; h[7]=wm;
 }
 static void kv_disk_truncate(Model *m, int nrec){
     if(!g_kvsave) return;
     KVState *k=m->kv;
     FILE *f=fopen(k->disk_path,"r+b");
-    if(!f){ k->disk_nrec=0; return; }
+    if(!f){ k->disk_nrec=0; k->disk_wm=0; return; }
     k->disk_nrec=nrec;
-    int32_t nr=nrec; fseek(f,8+6*4,SEEK_SET); fwrite(&nr,4,1,f); fclose(f);
+    k->disk_wm=kv_wm_truncate(k->disk_wm,nrec);
+    int32_t nw[2]={nrec,k->disk_wm}; fseek(f,8+6*4,SEEK_SET); fwrite(nw,4,2,f); fclose(f);
 }
 static void kv_disk_reset(Model *m){ kv_disk_truncate(m,0); }
-static void kv_disk_append(Model *m, const int *hist, int len){
+static void kv_disk_append(Model *m, const int *hist, int len, int complete){
     KVState *k=m->kv;
     if(!g_kvsave || len<=k->disk_nrec) return;
     Cfg *c=&m->c;
     FILE *f=fopen(k->disk_path,"r+b");
     if(!f){ f=fopen(k->disk_path,"wb"); if(!f) return;
-        int32_t h[8]; kv_hdr(m,h,0); fwrite(KV_MAGIC,1,8,f); fwrite(h,4,8,f); }
+        int32_t h[8]; kv_hdr(m,h,0,0); fwrite(KV_MAGIC,1,8,f); fwrite(h,4,8,f); }
     int64_t rec = 4 + (int64_t)c->n_layers*(c->kv_lora+c->qk_rope)*4;
     if(m->has_dsa) for(int i=0;i<c->n_layers;i++) if(m->Ic[i]) rec+=(int64_t)c->index_hd*4;
     fseek(f, 8+8*4 + (int64_t)k->disk_nrec*rec, SEEK_SET);
@@ -2162,7 +2170,8 @@ static void kv_disk_append(Model *m, const int *hist, int len){
             fwrite(m->Ic[i]+(int64_t)p*c->index_hd, 4, c->index_hd, f);
     }
     fflush(f);                                   /* dati prima, contatore poi */
-    int32_t nr=len; fseek(f,8+6*4,SEEK_SET); fwrite(&nr,4,1,f); fclose(f);
+    k->disk_wm=kv_wm_append(k->disk_wm,len,complete);
+    int32_t nw[2]={len,k->disk_wm}; fseek(f,8+6*4,SEEK_SET); fwrite(nw,4,2,f); fclose(f);
     k->disk_nrec=len;
 }
 static int kv_disk_load(Model *m, int *hist, int maxctx){
@@ -2170,11 +2179,14 @@ static int kv_disk_load(Model *m, int *hist, int maxctx){
     KVState *k=m->kv;
     Cfg *c=&m->c;
     FILE *f=fopen(k->disk_path,"rb"); if(!f) return 0;
-    char mg[8]; int32_t h[8], w[8]; kv_hdr(m,w,0);
+    char mg[8]; int32_t h[8], w[8]; kv_hdr(m,w,0,0);
     if(fread(mg,1,8,f)!=8 || memcmp(mg,KV_MAGIC,8) || fread(h,4,8,f)!=8 ||
        h[0]!=w[0]||h[1]!=w[1]||h[2]!=w[2]||h[3]!=w[3]||h[4]!=w[4]||h[5]!=w[5]){
         fprintf(stderr,"[KV] ignoring .coli_kv from a different model or version\n"); fclose(f); return 0; }
-    int nrec=h[6];
+    /* MAI riprendere un mezzo turno: la coda oltre il watermark e' una risposta
+     * troncata da NGEN (o da un kill) e confonderebbe il modello al turno dopo */
+    int nrec=kv_resume_len(h[6],h[7]);
+    if(nrec<h[6]) fprintf(stderr,"[KV] dangling half-turn on disk: resuming %d of %d tokens\n",nrec,h[6]);
     if(nrec<1){ fclose(f); return 0; }
     if(nrec>=maxctx-8-g_draft){
         fprintf(stderr,"[KV] saved conversation (%d tokens) exceeds the context: starting over\n",nrec);
@@ -2197,6 +2209,7 @@ out:
             nrec, now_s()-t0);
     }
     k->disk_nrec=nrec;
+    k->disk_wm=nrec;      /* tutto il resume finisce su un turno completo (trim sopra) */
     return nrec;
 }
 
@@ -2271,7 +2284,7 @@ static void run_serve(Model *m, const char *snap){
             double dh=(double)(m->hits-h0), dm=(double)(m->miss-ms0);
             printf("\n\x01\x01" "END" "\x01\x01\n");
             printf("STAT %d %.2f %.1f %.2f\n", prod, prod/tdt, (dh+dm)>0?100.0*dh/(dh+dm):0.0, rss_gb());
-            fflush(stdout); kv_disk_append(m,hist,len); repin_pass(m); continue; }   /* RFC: re-pin a caldo tra i turni / live re-pin between turns */
+            fflush(stdout); kv_disk_append(m,hist,len,cur>0&&prod<cur); repin_pass(m); continue; }   /* RFC: re-pin a caldo tra i turni / live re-pin between turns */
         if(nr<1){ printf("\x01\x01" "END" "\x01\x01\n"); printf("STAT 0 0.00 0.0 %.2f\n", rss_gb()); fflush(stdout); continue; }
         /* API mode: an exact, length-prefixed prompt. Unlike the interactive
          * line protocol this accepts newlines. The tokenized prompt is matched
@@ -2351,7 +2364,9 @@ static void run_serve(Model *m, const char *snap){
         fflush(stdout);
         free(raw); g_temp=base_temp; g_nuc=base_nuc;
         usage_save(m);                   /* la cache che impara: storia aggiornata a ogni turno */
-        kv_disk_append(m,hist,len);      /* KV su disco: il prossimo avvio riparte da qui */
+        kv_disk_append(m,hist,len,cur>0&&prod<cur);  /* KV su disco; completo = fermato da EOS,
+                                          non dal limite NGEN (prod>=cur = mezzo turno, il
+                                          watermark resta sul confine precedente) */
     }
     free(line); free(buf);
     usage_save(m);
