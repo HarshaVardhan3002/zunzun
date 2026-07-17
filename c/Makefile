@@ -53,7 +53,7 @@ CUDA_ARCH ?= native
 NVCCFLAGS ?= -O3 -std=c++17 -arch=$(CUDA_ARCH) -Xcompiler=-Wall,-Wextra
 PYTHON    ?= python3
 CUDA_OBJ  =
-TEST_BINS = tests/test_json$(EXE) tests/test_st$(EXE) tests/test_tier$(EXE) tests/test_grammar$(EXE) tests/test_cache$(EXE) tests/test_sched$(EXE) tests/test_profile$(EXE) tests/test_sample$(EXE)
+TEST_BINS = tests/test_json$(EXE) tests/test_st$(EXE) tests/test_tier$(EXE) tests/test_grammar$(EXE) tests/test_cache$(EXE) tests/test_sched$(EXE) tests/test_profile$(EXE) tests/test_sample$(EXE) tests/test_kvdisk$(EXE)
 ifeq ($(CUDA),1)
 ifeq ($(UNAME_S),Darwin)
 $(error CUDA=1 is supported only on Linux)
@@ -73,7 +73,10 @@ HIP        ?= 0
 HIPCC      ?= hipcc
 HIP_ARCH   ?= gfx1151
 # ROCm install root (has lib/amdhip64.lib, bin/amdhip64.dll). Override: make HIP=1 ROCM_PATH=...
-ROCM_PATH  ?= C:/Program Files/AMD/ROCm/7.1
+# Since the 2026-07 update ROCm ships as a pip wheel (_rocm_sdk_devel in site-packages);
+# prefer it when present, else fall back to the classic Program Files install.
+ROCM_PIP   := $(subst \,/,$(LOCALAPPDATA))/Programs/Python/Python312/Lib/site-packages/_rocm_sdk_devel
+ROCM_PATH  ?= $(if $(wildcard $(ROCM_PIP)/lib/amdhip64.lib),$(ROCM_PIP),C:/Program Files/AMD/ROCm/7.1)
 HIPCCFLAGS ?= -O3 -std=c++17 --offload-arch=$(HIP_ARCH) -Wno-unused-result
 HIP_OBJ    =
 ifeq ($(HIP),1)
@@ -135,6 +138,9 @@ tests/test_profile$(EXE): tests/test_profile.c profile.h
 	$(CC) $(CFLAGS) -I. $< -o $@ $(LDFLAGS)
 
 tests/test_sample$(EXE): tests/test_sample.c sample.h
+	$(CC) $(CFLAGS) -I. $< -o $@ $(LDFLAGS)
+
+tests/test_kvdisk$(EXE): tests/test_kvdisk.c kvdisk.h
 	$(CC) $(CFLAGS) -I. $< -o $@ $(LDFLAGS)
 
 test-c: $(TEST_BINS)
