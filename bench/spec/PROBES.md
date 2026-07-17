@@ -123,3 +123,18 @@ WIRING-AUDIT seam 4 (recycle post-shared_head.norm hidden into chained drafts,
 as vLLM/SGLang) was the acceptance bug; adopted in glm.c with `MTP_RAWCHAIN=1`
 as the legacy control. Spec goals met at the new default: acceptance ≥60,
 tok/fw ≥3. Controls: MTP_SWAP 0%, MTP_PRENORM kills d3, MTP_MASK0 noise.
+
+## Task-11(c) real CPU-config chat session (2026-07-17, post-cleanup)
+
+`CPU=1 ./run_glm52.sh`, fresh KV, topp 0.7, draft auto=4 (chain-norm): turn 1
+46 tok 0.39 tok/s hit 63%; turn 2 535 tok **0.44 tok/s** hit 66%, RSS 107 GB.
+Output quality clean (valid single-file HTML, no dropped tokens — the original
+bug symptom did not reproduce). Reference warm baseline 0.49 tok/s (old wiring,
+warmer cache). Interpretation: at 63-66% expert hit rate the session is
+NVMe-bound; speculation multiplies tokens/forward but batch-union also
+multiplies unique experts/forward (probe: 775/token at DRAFT=0 vs 1073 at d4),
+so wall-clock is ~parity cold (probe A/B: 0.40 vs 0.38). The fix's real effect:
+OLD wiring speculation was a net LOSS (d3 probe 0.31-0.33 vs 0.40 no-spec);
+NEW wiring is parity cold and net-positive as hit rate rises (accepted tokens
+amortize cached-expert reads). tok/s headroom on this box lives in the
+hit-rate/caching project, not deeper speculation.
