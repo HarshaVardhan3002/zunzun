@@ -138,3 +138,13 @@ OLD wiring speculation was a net LOSS (d3 probe 0.31-0.33 vs 0.40 no-spec);
 NEW wiring is parity cold and net-positive as hit rate rises (accepted tokens
 amortize cached-expert reads). tok/s headroom on this box lives in the
 hit-rate/caching project, not deeper speculation.
+## merged_base  (2026-07-17 22:29:22)  []
+prefill 29 tokens in 62.67s | decode 96 tokens in 222.92s (0.43 tok/s) | expert hit rate 64.0% | RSS 95.42 GB
+speculation: 3.31 tokens/forward (29 forwards per 96 tokens) | MTP acceptance 57% (66/116)
+acceptance by depth [mtp]: d1 93% (27/29) d2 74% (20/27) d3 60% (12/20) d4 58% (7/12)
+
+## merged_cacheroute  (2026-07-17 22:33:56)  [CACHE_ROUTE=1 ROUTE_J=2 ROUTE_M=12]
+prefill 29 tokens in 51.49s | decode 96 tokens in 170.26s (0.56 tok/s) | expert hit rate 80.0% | RSS 98.14 GB | swap 16.4% (19690/120008) | route_agree 83.6% | route_kl 2.5776
+speculation: 2.82 tokens/forward (34 forwards per 96 tokens) | MTP acceptance 46% (62/136)
+acceptance by depth [mtp]: d1 82% (28/34) d2 61% (17/28) d3 75% (12/16) d4 42% (5/12)
+
