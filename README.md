@@ -1,8 +1,19 @@
-<p align="center">
-  <img src="assets/zunzun.svg" width="500" alt="zunzún — tiny engine, immense model">
-</p>
+<div align="center">
 
-**Tiny engine, immense model.** Run **GLM-5.2 (744B-parameter MoE)** on a consumer machine with ~25 GB of RAM — in pure C, with zero dependencies, by streaming experts from disk.
+<img src="assets/zunzun.svg" width="520" alt="zunzún: tiny engine, immense model">
+
+**Tiny engine, immense model.**<br>
+Run **GLM-5.2, a 744-billion-parameter Mixture-of-Experts model**, on one desktop machine, in pure C, by streaming experts from disk.
+
+![Language](https://img.shields.io/badge/pure%20C-zero%20dependencies-e6011d)
+![Backends](https://img.shields.io/badge/backends-CPU%20%7C%20HIP%20%7C%20CUDA-2b3137)
+![Platforms](https://img.shields.io/badge/Linux%20%7C%20Windows%2011%20%7C%20macOS-2b3137)
+[![License](https://img.shields.io/badge/license-Apache%202.0-e6011d)](LICENSE)
+[![Upstream](https://img.shields.io/badge/fork%20of-colibr%C3%AC-2b3137)](https://github.com/JustVugg/colibri)
+
+[What Zunzun adds](#what-zunzun-adds-and-what-comes-from-colibrì) · [The idea](#the-idea) · [Quick start](#quick-start) · [Windows](#windows-11-native-no-wsl) · [API](#openai-compatible-api) · [Benchmarks](#got-a-better-machine-try-it--heres-what-to-expect)
+
+</div>
 
 ```
 $ ./zun chat
@@ -12,17 +23,10 @@ $ ./zun chat
   ◆ Hello! 😊 How can I help you today?
 ```
 
-> **Zunzun** is built on [colibrì](https://github.com/JustVugg/colibri) by Vincenzo
-> (JustVugg) — the pure-C disk-streaming engine, the MLA/MoE forward, and most of what
-> makes this possible are his work (Apache 2.0, see `NOTICE`). Zunzun takes that
-> foundation in its own direction: a **general MoE runtime for non-CUDA hardware** —
-> unified-memory APUs (AMD Strix Halo class), CPU+iGPU co-execution over one zero-copy
-> expert cache, native Windows and Linux, vendor-neutral GPU backends (HIP today), and
-> model-agnostic beyond GLM-5.2. Named after the *zunzuncito*, the Cuban bee
-> hummingbird — the smallest bird in the world.
->
-> **Collaboration is wanted, not just welcome**: benchmarks from AMD/unified-memory
-> boxes, backend ports, MoE models beyond GLM — open an issue and build with us.
+> [!NOTE]
+> **Built on [colibrì](https://github.com/JustVugg/colibri) by Vincenzo (JustVugg).** The pure-C disk-streaming engine, the MLA/MoE forward pass and most of what makes this possible are his work (Apache 2.0, see `NOTICE`). The upstream project deserves your star before this one.
+
+Zunzun takes that foundation in its own direction: a **general MoE runtime for non-CUDA hardware**. That means unified-memory APUs (AMD Strix Halo class), CPU and iGPU sharing one zero-copy expert cache, native Windows and Linux, vendor-neutral GPU backends (HIP today), and models beyond GLM-5.2. It is named after the *zunzuncito*, the Cuban bee hummingbird, the smallest bird in the world.
 
 ## What Zunzun adds, and what comes from colibrì
 
@@ -39,12 +43,18 @@ The engine itself (the GLM-5.2 forward pass, MLA attention, KV-cache compression
 | **Router**: one OpenAI-compatible endpoint that picks a GPU or CPU profile per request, starts backends on demand, gives the iGPU to one owner at a time and stops idle ones | `router/` |
 | Strix Halo run guide, testing ladder, integrity checks, the rebrand | `RUN_GLM52.md`, `TESTING.md`, `scripts/check_integrity.py` |
 
-Measured on a Ryzen AI Max+ 395 (Strix Halo, 128 GB unified memory):
+### Measured on a Ryzen AI Max+ 395 (Strix Halo, 128 GB unified memory)
 
-- The iGPU reads its VRAM carve-out at **226 GB/s** and host memory (GTT) at **125 GB/s**. So hot experts are mirrored into VRAM and cold ones are read zero-copy.
-- GLM-5.2 744B: **0.08 tokens/s cold** (1.2% cache hits), **0.29 tokens/s while warming** (34% hits), and climbing as the hot-expert set is learned. See [`RUN_GLM52.md`](RUN_GLM52.md).
+<table>
+<tr>
+<td align="center" width="25%"><h3>226 GB/s</h3><sub>iGPU reading its VRAM carve-out</sub></td>
+<td align="center" width="25%"><h3>125 GB/s</h3><sub>iGPU reading host memory (GTT) zero-copy</sub></td>
+<td align="center" width="25%"><h3>0.08 tok/s</h3><sub>GLM-5.2 744B, cold cache (1.2% hits)</sub></td>
+<td align="center" width="25%"><h3>0.29 tok/s</h3><sub>while warming (34% hits), still climbing</sub></td>
+</tr>
+</table>
 
-It is slow, and the README says so. The point is that a 744-billion-parameter model answers correctly on one desktop APU.
+So hot experts are mirrored into VRAM and cold ones are read zero-copy. Details are in [`RUN_GLM52.md`](RUN_GLM52.md). It is slow, and this page says so. The point is that a 744-billion-parameter model answers correctly on one desktop APU.
 
 ## The idea
 
@@ -53,12 +63,33 @@ A 744B Mixture-of-Experts model activates only ~40B parameters per token — and
 - the **dense part** (attention, shared experts, embeddings — ~17B params) stays **resident in RAM at int4** (~9.9 GB);
 - the **21,504 routed experts** (75 MoE layers × 256 experts + the MTP head, ~19 MB each at int4) live **on disk** (~370 GB) and are **streamed on demand**, with a per-layer LRU cache, an optional pinned hot-store, and the OS page cache as a free L2.
 
+```mermaid
+flowchart LR
+    subgraph RAM["RAM, always resident"]
+        D["Dense part at int4<br>attention, shared experts, embeddings<br>about 9.9 GB"]
+    end
+    subgraph HOT["Hot tier"]
+        P["Pinned hot experts<br>learned from your usage"]
+        V["iGPU VRAM mirror<br>(Zunzun, Strix Halo)"]
+    end
+    subgraph DISK["NVMe, about 370 GB"]
+        E["21,504 routed experts<br>about 19 MB each at int4"]
+    end
+    E -- "streamed on demand<br>per-layer LRU + OS page cache" --> P
+    P --> V
+    D --> T(("one token"))
+    P --> T
+    V --> T
+```
+
 The engine is a single C file (`c/glm.c`, ~2,400 lines) plus small headers. No BLAS, no Python at runtime, no GPU required (an opt-in CUDA tier for pinned experts exists — see below).
 
 ## What the engine does (upstream colibrì)
 
-These features come from colibrì and its contributors and are inherited unchanged.
+These features come from colibrì and its contributors and are inherited unchanged: a token-exact GLM-5.2 forward, MLA attention with a 57× smaller KV cache, MTP and grammar-forced speculative decoding, integer-dot kernels, DSA sparse attention, KV persistence, and an offline FP8 to int4 converter.
 
+<details>
+<summary><b>Open the upstream feature list</b></summary>
 
 - **Faithful GLM-5.2 (`glm_moe_dsa`) forward** — validated token-exact against a `transformers` oracle (teacher-forcing 32/32, greedy 20/20 on a tiny-random model with the real architecture).
 - **MLA attention** (q/kv-LoRA, interleaved partial RoPE) with **compressed KV-cache**: 576 floats/token instead of 32,768 (57× smaller — GLM-5.2 has 64 heads and no GQA).
@@ -77,6 +108,8 @@ These features come from colibrì and its contributors and are inherited unchang
 - **Byte-level BPE tokenizer in C** (GPT-2-style with Unicode-property regex, 320k merges).
 - **RAM safety**: the expert cache is auto-sized from `MemAvailable` at startup — an honest peak projection (working set, KV, MTP row, reconstruction buffers) so the kernel OOM-killer never fires.
 - **Offline FP8→int4 converter** (`c/tools/convert_fp8_to_int4.py`): downloads one shard at a time (~5 GB), dequants (128×128 block scales), requantizes to the engine's container, deletes the shard — the 756 GB FP8 checkpoint never needs to exist on disk at once. Resumable.
+
+</details>
 
 ## Upstream numbers (colibrì, WSL2, 12 cores, 25 GB RAM, NVMe via VHDX)
 
@@ -113,7 +146,7 @@ This skips the FP8 → int4 conversion step entirely.
 
 Thanks DatPat for your help!
 
-### Quick start
+## Quick start
 
 ```bash
 cd c
@@ -252,6 +285,9 @@ generation responses include `x-zunzun-queue-wait-ms`.
 
 ### Isolated KV contexts
 
+<details>
+<summary><b>Up to 16 independent sequence contexts with <code>--kv-slots</code></b></summary>
+
 `zun serve --kv-slots N` allocates up to 16 independent sequence contexts. Requests
 select one with the optional integer `cache_slot` field; ordinary OpenAI clients omit
 it and keep the original slot 0 behavior.
@@ -271,7 +307,12 @@ threaded HTTP is continuous batching. RAM admission accounts for every configure
 Use `COLI_KV_SLOTS=N` as the environment equivalent. Start with a small value: at the
 default 4096-token context, every slot costs hundreds of MB.
 
+</details>
+
 ### Experimental resident CUDA backend
+
+<details>
+<summary><b>Opt-in CUDA tier for resident tensors and hot experts</b></summary>
 
 Zunzun includes an opt-in CUDA backend for model-resident tensors (and a HIP
 backend for AMD iGPUs — `make HIP=1`). Streaming
@@ -335,6 +376,8 @@ python tools/benchmark_cuda_fixture.py --model /nvme/zunzun-bench-medium --gpu 0
 The fixture has random weights and is not a language model. It exists only to
 preserve the real MLA/MoE/streaming shapes and compare CPU streaming, dense-only
 CUDA, CPU hot-store, and CUDA hot-expert execution with identical replay tokens.
+
+</details>
 
 ### Web interface
 
@@ -406,6 +449,9 @@ These are estimates, not measurements — if you run Zunzun on serious hardware,
 
 ### Community benchmarks (measured on upstream colibrì)
 
+<details>
+<summary><b>Open the community benchmark table (8 machines)</b></summary>
+
 Real numbers from real machines reported to the [upstream project](https://github.com/JustVugg/colibri), stock build (`setup.sh`, gcc 13), greedy decoding, `--ngen 32`, MTP active:
 
 | machine | disk (iobench, 19 MB × 64, 8 threads) | config | measured |
@@ -421,6 +467,8 @@ Real numbers from real machines reported to the [upstream project](https://githu
 | 〃 five runs later — learned pin 47.6 GB ([#39](https://github.com/JustVugg/colibri/issues/39)) | 〃 | `--temp 0.7 --topp 0.7` | **0.40 tok/s** · hit 71% · fastest non-Apple datapoint |
 
 Takeaways: with 24 GB of RAM the engine auto-caps the expert cache to 2 slots/layer, so decode stays cold even on a disk 2–2.7× faster than the dev box — **on small-RAM machines the RAM cap, not the disk, is the binding constraint**, exactly as the table above predicts; `--topp 0.7` alone bought a clean 1.6× end-to-end speedup. The M5 Max datapoint lands right on the table's second row: **~1 tok/s of a 744B model on a laptop SSD** — and its 14 GB/s disk shifts the bottleneck back to RAM budget and kernels. The Framework 13 rows are the cache thesis proven end-to-end on one machine: 0.29 → 0.37 tok/s (hit 28% → 66%, speculation finally engaging at 52% acceptance) just by giving the cache its RAM — int8 MTP head + a bigger cap + the learned pin. The cap part is now automatic (cap auto-raise, 2026-07-10). The 9950X pair is the cleanest bottleneck experiment yet — same machine, same history, only the disk swapped: ×5.8 disk bandwidth bought ×2.9 tokens, and the profile **flipped from 66% disk to 57% matmul**. Past ~5 GB/s the disk stops being the story and the CPU (or the CUDA expert tier) becomes it.
+
+</details>
 
 ## Quality benchmark — help wanted
 
