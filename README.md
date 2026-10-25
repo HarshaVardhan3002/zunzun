@@ -24,6 +24,28 @@ $ ./zun chat
 > **Collaboration is wanted, not just welcome**: benchmarks from AMD/unified-memory
 > boxes, backend ports, MoE models beyond GLM — open an issue and build with us.
 
+## What Zunzun adds, and what comes from colibrì
+
+The engine itself (the GLM-5.2 forward pass, MLA attention, KV-cache compression, MTP speculative decoding, disk streaming, the tokenizer and the converter) is colibrì's work. It is listed under [What the engine does](#what-the-engine-does-upstream-colibrì) below. Zunzun's own work is the layer that takes the engine to AMD hardware and native Windows:
+
+| Added in Zunzun | Where |
+|---|---|
+| **HIP/ROCm backend for the AMD Strix Halo iGPU** (Radeon 8060S, gfx1151): int8/int4/int2 matmul kernels, multi-device contexts, a zero-copy map path for cold streamed experts | `c/backend_hip.cpp`, `c/backend_hip.h` |
+| **One GPU interface for CUDA and HIP**, so `glm.c` is written once and the vendor is chosen at build time | `c/backend.h` |
+| **Expert cache seam** over the pinned hot-store and per-layer LRU (behaviour byte-identical to before, tested) | `c/cache.h`, `c/tests/test_cache.c` |
+| **CPU/GPU placement scheduler**: batched work goes to the GPU; single-token decode only when the weight is resident and large. A pure function, unit-tested without hardware | `c/scheduler.h`, `c/tests/test_sched.c` |
+| **Bandwidth gate benchmark** that decides zero-copy versus mirroring per machine | `bench/g1_bandwidth.cpp` |
+| **Windows unbuffered expert reads** (`DIRECT=1`, `FILE_FLAG_NO_BUFFERING`) | `c/compat.h`, `c/glm.c` |
+| **Router**: one OpenAI-compatible endpoint that picks a GPU or CPU profile per request, starts backends on demand, gives the iGPU to one owner at a time and stops idle ones | `router/` |
+| Strix Halo run guide, testing ladder, integrity checks, the rebrand | `RUN_GLM52.md`, `TESTING.md`, `scripts/check_integrity.py` |
+
+Measured on a Ryzen AI Max+ 395 (Strix Halo, 128 GB unified memory):
+
+- The iGPU reads its VRAM carve-out at **226 GB/s** and host memory (GTT) at **125 GB/s**. So hot experts are mirrored into VRAM and cold ones are read zero-copy.
+- GLM-5.2 744B: **0.08 tokens/s cold** (1.2% cache hits), **0.29 tokens/s while warming** (34% hits), and climbing as the hot-expert set is learned. See [`RUN_GLM52.md`](RUN_GLM52.md).
+
+It is slow, and the README says so. The point is that a 744-billion-parameter model answers correctly on one desktop APU.
+
 ## The idea
 
 A 744B Mixture-of-Experts model activates only ~40B parameters per token — and only ~11 GB of those change from token to token (the routed experts). So:
@@ -33,7 +55,10 @@ A 744B Mixture-of-Experts model activates only ~40B parameters per token — and
 
 The engine is a single C file (`c/glm.c`, ~2,400 lines) plus small headers. No BLAS, no Python at runtime, no GPU required (an opt-in CUDA tier for pinned experts exists — see below).
 
-## What's implemented
+## What the engine does (upstream colibrì)
+
+These features come from colibrì and its contributors and are inherited unchanged.
+
 
 - **Faithful GLM-5.2 (`glm_moe_dsa`) forward** — validated token-exact against a `transformers` oracle (teacher-forcing 32/32, greedy 20/20 on a tiny-random model with the real architecture).
 - **MLA attention** (q/kv-LoRA, interleaved partial RoPE) with **compressed KV-cache**: 576 floats/token instead of 32,768 (57× smaller — GLM-5.2 has 64 heads and no GQA).
@@ -53,7 +78,7 @@ The engine is a single C file (`c/glm.c`, ~2,400 lines) plus small headers. No B
 - **RAM safety**: the expert cache is auto-sized from `MemAvailable` at startup — an honest peak projection (working set, KV, MTP row, reconstruction buffers) so the kernel OOM-killer never fires.
 - **Offline FP8→int4 converter** (`c/tools/convert_fp8_to_int4.py`): downloads one shard at a time (~5 GB), dequants (128×128 block scales), requantizes to the engine's container, deletes the shard — the 756 GB FP8 checkpoint never needs to exist on disk at once. Resumable.
 
-## Honest numbers (WSL2, 12 cores, 25 GB RAM, NVMe via VHDX)
+## Upstream numbers (colibrì, WSL2, 12 cores, 25 GB RAM, NVMe via VHDX)
 
 | metric | value |
 |---|---|
